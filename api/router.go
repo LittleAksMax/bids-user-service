@@ -4,17 +4,16 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/LittleAksMax/bids-user-service/cache"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/LittleAksMax/bids-user-service/config"
 	"github.com/LittleAksMax/bids-user-service/health"
-	"github.com/LittleAksMax/bids-user-service/repository"
-	"github.com/LittleAksMax/bids-user-service/service"
 	"github.com/LittleAksMax/bids-util/requests"
 )
 
 // NewRouter constructs the main API router by wiring middleware and routes defined elsewhere.
-func NewRouter(pool *sql.DB, cfg *config.Config, secureMode bool) http.Handler {
+func NewRouter(pool *sql.DB, cache *cache.RedisRefreshStore, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	RegisterMiddleware(r)
@@ -29,37 +28,13 @@ func NewRouter(pool *sql.DB, cfg *config.Config, secureMode bool) http.Handler {
 		300,
 	)
 
-	// Initialise authentication layers
-	userRepo := repository.NewUserRepository()
-	credRepo := repository.NewPasswordCredentialRepository()
-	authService := service.NewAuthService(pool, userRepo, credRepo, cfg.PasswordPepper)
-
-	// Initialise token management layers
-	refreshTokenRepo := repository.NewRefreshTokenRepository()
-	tokenService := service.NewTokenService(
-		pool,
-		refreshTokenRepo,
-		userRepo,
-		cfg.AccessTokenSecret, cfg.RefreshTokenSecret,
-		cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.TokenIssuer, cfg.TokenAudience)
-
-	// Initialise cookie management services
-	cookieService := service.NewCookieService(
-		"/auth/refresh",
-		"refresh_token",
-		int(cfg.RefreshTokenTTL.Seconds()),
-		http.SameSiteStrictMode,
-		secureMode)
-
-	// Initialise controllers
-	authController := NewAuthController(authService, tokenService, cookieService)
-
 	// Create health checkers map
 	healthCheckers := map[string]health.HealthChecker{
 		"database": health.NewDBHealthChecker(pool),
+		"cache":    health.NewCacheHealthChecker(cache.Client),
 	}
 
-	RegisterRoutes(r, authController, healthCheckers)
+	RegisterRoutes(r, healthCheckers)
 
 	return r
 }

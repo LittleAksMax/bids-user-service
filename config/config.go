@@ -1,11 +1,9 @@
 package config
 
 import (
-	"fmt"
-	"net"
-	"net/url"
 	"time"
 
+	"github.com/LittleAksMax/bids-user-service/cache"
 	"github.com/LittleAksMax/bids-user-service/db"
 	"github.com/LittleAksMax/bids-util/env"
 )
@@ -20,9 +18,10 @@ type AuthConfig struct {
 }
 
 type Config struct {
-	DB   *db.PostgresConnectionConfig
-	Auth *AuthConfig
-	
+	DB    *db.PostgresConnectionConfig
+	Cache *cache.RedisConnectionConfig
+	Auth  *AuthConfig
+
 	Port int
 
 	PasswordPepper string // Add this field for password pepper
@@ -34,44 +33,28 @@ type Config struct {
 // Required: DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME, PORT,
 // ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, VALIDATION_API_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 func Load() (*Config, error) {
-	host := env.GetStrFromEnv("DATABASE_HOST")
-	port := env.GetStrFromEnv("DATABASE_PORT")
-	user := env.GetStrFromEnv("DATABASE_USER")
-	pass := env.GetStrFromEnv("DATABASE_PASSWORD")
-	name := env.GetStrFromEnv("DATABASE_NAME")
-	appPort := env.ReadPort("PORT")
-	// Token settings
-	accessTTL := env.ParseDurationEnv("ACCESS_TOKEN_TTL")
-	refreshTTL := env.ParseDurationEnv("REFRESH_TOKEN_TTL")
-	tokenIssuer := env.GetStrFromEnv("TOKEN_ISSUER")
-	tokenAudience := env.GetStrFromEnv("TOKEN_AUDIENCE")
-
-	// CORS settings
-	allowedOrigins := env.GetStrListFromEnv("ALLOWED_ORIGINS")
-
 	return &Config{
-		DBHost:             host,
-		DBPort:             port,
-		DBUser:             user,
-		DBPassword:         pass,
-		DBName:             name,
-		Port:               appPort,
-		AccessTokenSecret:  accessSecret,
-		RefreshTokenSecret: refreshSecret,
-		ValidationAPIKey:   validationKey,
-		AccessTokenTTL:     accessTTL,
-		RefreshTokenTTL:    refreshTTL,
-		TokenIssuer:        tokenIssuer,
-		TokenAudience:      tokenAudience,
-		PasswordPepper:     pepper,
-		AllowedOrigins:     allowedOrigins,
+		Auth: &AuthConfig{
+			AccessTokenSecret: env.GetStrFromEnv("ACCESS_TOKEN_SECRET"),
+			SharedSecret:      env.GetStrFromEnv("X_AUTH_SIG_SECRET"),
+			MaxSkew:           env.ParseDurationEnv("MAX_SKEW"),
+			ClaimsHeader:      env.GetStrFromEnv("CLAIMS_HEADER"),
+			TimestampHeader:   env.GetStrFromEnv("TIMESTAMP_HEADER"),
+			SignatureHeader:   env.GetStrFromEnv("SIGNATURE_HEADER"),
+		},
+		DB: &db.PostgresConnectionConfig{
+			Host:   env.GetStrFromEnv("DATABASE_HOST"),
+			Port:   env.ReadPort("DATABASE_PORT"),
+			User:   env.GetStrFromEnv("DATABASE_USER"),
+			Passwd: env.GetStrFromEnv("DATABASE_PASSWORD"),
+			DBName: env.GetStrFromEnv("DATABASE_NAME"),
+		},
+		Cache: &cache.RedisConnectionConfig{
+			Host:     env.GetStrFromEnv("REDIS_HOST"),
+			Port:     env.GetIntFromEnv("REDIS_PORT"),
+			Password: env.GetStrFromEnv("REDIS_PASSWORD"),
+		},
+		Port:           env.ReadPort("PORT"),
+		AllowedOrigins: env.GetStrListFromEnv("ALLOWED_ORIGINS"),
 	}, nil
-}
-
-// DSN builds a Postgres connection string from component parts.
-func (c *Config) DSN() string {
-	userEsc := url.QueryEscape(c.DBUser)
-	passEsc := url.QueryEscape(c.DBPassword)
-	hostPort := net.JoinHostPort(c.DBHost, c.DBPort)
-	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", userEsc, passEsc, hostPort, c.DBName)
 }

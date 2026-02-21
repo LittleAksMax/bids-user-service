@@ -11,8 +11,8 @@ import (
 )
 
 // Connect opens a database/sql DB backed by pgx, returns a pooled *sql.DB
-func Connect(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+func Connect(ctx context.Context, cfg *PostgresConnectionConfig) (*sql.DB, error) {
+	db, err := sql.Open("pgx", cfg.DSN())
 	if err != nil {
 		return nil, err
 	}

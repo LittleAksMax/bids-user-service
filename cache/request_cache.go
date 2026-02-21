@@ -13,4 +13,5 @@ type RequestCache interface {
 	Set(ctx context.Context, key string, value string, expiresIn time.Duration) error
 	Get(ctx context.Context, key string) (value string, expiresAt time.Time, err error)
 	Delete(ctx context.Context, key string) error
+	Close() error
 }

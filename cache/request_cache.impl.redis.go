@@ -11,13 +11,13 @@ import (
 )
 
 type RedisConnectionConfig struct {
-	RedisHost     string
-	RedisPort     int
-	RedisPassword string
+	Host     string
+	Port     int
+	Password string
 }
 
 func (cfg *RedisConnectionConfig) DSN() string {
-	return fmt.Sprintf("%s:%d", cfg.RedisHost, cfg.RedisPort)
+	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 }
 
 var (
@@ -35,7 +35,7 @@ type RedisRefreshStore struct {
 func NewRedisRefreshStore(ctx context.Context, cfg *RedisConnectionConfig) (*RedisRefreshStore, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.DSN(),
-		Password: cfg.RedisPassword,
+		Password: cfg.Password,
 	})
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -93,7 +93,6 @@ func (s *RedisRefreshStore) Delete(ctx context.Context, token string) error {
 	return s.Client.Del(ctx, key).Err()
 }
 
-// HealthCheck checks if the Redis connection is healthy.
-func (s *RedisRefreshStore) HealthCheck(ctx context.Context) error {
-	return s.Client.Ping(ctx).Err()
+func (s *RedisRefreshStore) Close() error {
+	return s.Client.Close()
 }
