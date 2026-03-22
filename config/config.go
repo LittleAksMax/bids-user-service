@@ -17,10 +17,18 @@ type AuthConfig struct {
 	SignatureHeader   string
 }
 
+type AmazonAdsConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+	LWASecret    string
+}
+
 type Config struct {
 	DB    *db.PostgresConnectionConfig
 	Cache *cache.RedisConnectionConfig
 	Auth  *AuthConfig
+	Ads   *AmazonAdsConfig
 
 	Port int
 
@@ -53,6 +61,12 @@ func Load() (*Config, error) {
 			Host:     env.GetStrFromEnv("REDIS_HOST"),
 			Port:     env.GetIntFromEnv("REDIS_PORT"),
 			Password: env.GetStrFromEnv("REDIS_PASSWORD"),
+		},
+		Ads: &AmazonAdsConfig{
+			ClientID:     env.GetStrFromEnv("AMAZON_ADS_CLIENT_ID"),
+			ClientSecret: env.GetStrFromEnv("AMAZON_ADS_CLIENT_SECRET"),
+			RedirectURI:  env.GetStrFromEnv("AMAZON_ADS_REDIRECT_URI"),
+			LWASecret:    env.GetStrFromEnv("AMAZON_ADS_LWA_SECRET"),
 		},
 		Port:           env.ReadPort("PORT"),
 		AllowedOrigins: env.GetStrListFromEnv("ALLOWED_ORIGINS"),

@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/LittleAksMax/bids-user-service/config"
 	"github.com/LittleAksMax/bids-util/requests"
 	"github.com/go-chi/chi/v5"
 
@@ -44,13 +45,103 @@ func Health(checkers map[string]health.HealthChecker) http.HandlerFunc {
 	}
 }
 
+const uuidSubjectKey = "uuidSubject"
+
 // RegisterRoutes registers all endpoint handlers using the controller methods.
-func RegisterRoutes(r chi.Router, healthCheckers map[string]health.HealthChecker) {
+func RegisterRoutes(
+	r chi.Router,
+	bc bidsController,
+	tc tokensController,
+	cc campaignsController,
+	ac authController,
+	authCfg *config.AuthConfig,
+	healthCheckers map[string]health.HealthChecker,
+) {
 	// Health
 	r.Get("/health", Health(healthCheckers))
 
-	// Auth routes
-	r.Route("/users", func(r chi.Router) {
+	r.Route("/lwa", func(r chi.Router) {
+		// Public auth callback — locked down to Amazon OAuth origins only
+		r.Group(func(r chi.Router) {
+			requests.ApplyCORS(
+				r,
+				[]string{
+					"https://eu.account.amazon.com",   // EU
+					"https://www.amazon.com",          // US
+					"https://apac.account.amazon.com", // FE
+				},
+				[]string{"GET"},
+				[]string{"Accept", "Content-Type"},
+				nil,
+				false,
+				300,
+			)
+			r.Get("/process_token", ac.ProcessToken)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(
+				requests.ValidateAccessToken(
+					authCfg.SharedSecret,
+					authCfg.AccessTokenSecret,
+					authCfg.MaxSkew,
+					authCfg.ClaimsHeader,
+					authCfg.TimestampHeader,
+					authCfg.SignatureHeader,
+				),
+				requests.EnsureValidSubject(
+					authCfg.ClaimsHeader,
+					uuidSubjectKey,
+				),
+			)
+			r.Get("/{region}", ac.LWA)
+		})
+	})
 
+	// Authenticated routes
+	r.Route("/users", func(r chi.Router) {
+		r.Use(
+			requests.ValidateAccessToken(
+				authCfg.SharedSecret,
+				authCfg.AccessTokenSecret,
+				authCfg.MaxSkew,
+				authCfg.ClaimsHeader,
+				authCfg.TimestampHeader,
+				authCfg.SignatureHeader,
+			),
+			requests.EnsureValidSubject(
+				authCfg.ClaimsHeader,
+				uuidSubjectKey,
+			),
+		)
+
+		// Bids endpoints
+		r.Get("/bids/{campaignID}", bc.GetBidsForCampaign)
+		r.Post("/bids", bc.CreateBid)
+	})
+
+	r.Route("/user", func(r chi.Router) {
+		r.Use(
+			requests.ValidateAccessToken(
+				authCfg.SharedSecret,
+				authCfg.AccessTokenSecret,
+				authCfg.MaxSkew,
+				authCfg.ClaimsHeader,
+				authCfg.TimestampHeader,
+				authCfg.SignatureHeader,
+			),
+			requests.EnsureValidSubject(
+				authCfg.ClaimsHeader,
+				uuidSubjectKey,
+			),
+		)
+
+		// Tokens endpoints
+		r.Get("/tokens", tc.GetUserTokens)
+
+		r.Route("/profiles", func(r chi.Router) {
+			// Campaigns endpoint
+			r.Get("/", cc.GetProfiles)
+			r.Get("/{region}/{profileID}/campaigns", cc.GetCampaigns)
+		})
 	})
 }

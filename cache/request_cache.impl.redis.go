@@ -68,23 +68,7 @@ func (s *RedisRefreshStore) Set(ctx context.Context, token string, userID string
 
 // Get retrieves the userID and calculates expiresAt using TTL.
 func (s *RedisRefreshStore) Get(ctx context.Context, token string) (string, time.Time, error) {
-	key := s.buildKey(token)
-	val, err := s.Client.Get(ctx, key).Result()
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return "", time.Time{}, ErrNotFound
-		}
-		return "", time.Time{}, err
-	}
-	ttl, err := s.Client.TTL(ctx, key).Result()
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	if ttl <= 0 { // key exists but no TTL or expired
-		return "", time.Time{}, ErrExpired
-	}
-	expiresAt := time.Now().Add(ttl)
-	return val, expiresAt, nil
+	return redisGetWithTTL(ctx, s.Client, s.buildKey(token))
 }
 
 // Delete removes the refresh token key.
