@@ -11,7 +11,4 @@ import (
 type TokensService interface {
 	// GetUserTokens retrieves all tokens for a user
 	GetUserTokens(ctx context.Context, userID uuid.UUID) (*contracts.UserTokensResponse, error)
-
-	// SetUserToken sets a token for a specific region
-	SetUserToken(ctx context.Context, userID uuid.UUID, req *contracts.SetTokenRequest) error
 }

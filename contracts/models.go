@@ -34,12 +34,6 @@ type UserTokensResponse struct {
 	RefreshTokenFE *string   `json:"refresh_token_fe"`
 }
 
-// SetTokenRequest represents a request to set a token for a specific region
-type SetTokenRequest struct {
-	Region string `json:"region"` // "eu", "us", or "fe"
-	Token  string `json:"token"`
-}
-
 // ProcessTokenRequest represents the callback from Amazon LwA
 type ProcessTokenRequest struct {
 	Code  string `json:"code"`
@@ -55,20 +49,16 @@ type Campaign struct {
 
 // AdGroup represents an ad group with nested ads
 type AdGroup struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Ads  []Ad   `json:"ads"`
-}
-
-// Ad represents an individual ad
-type Ad struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	DefaultBid   float64 `json:"default_bid"`
+	CurrencyCode string  `json:"currency_code"`
 }
 
 // Seller represents a seller with their profiles
 type Seller struct {
-	ID       string          `json:"id"` // Binned from profile IDs
+	ID       string          `json:"id"`
+	Name     string          `json:"name"`
 	Profiles []RegionProfile `json:"profiles"`
 }
 

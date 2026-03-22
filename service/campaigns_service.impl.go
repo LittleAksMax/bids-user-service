@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	amazonads "github.com/LittleAksMax/amazon-ads-api-sdk-go"
 	amazonadsmodels "github.com/LittleAksMax/amazon-ads-api-sdk-go/models"
@@ -14,6 +18,47 @@ import (
 	"github.com/LittleAksMax/bids-user-service/repository"
 	"github.com/google/uuid"
 )
+
+const (
+	maxConcurrentRequests = 5
+	maxRetries            = 3
+)
+
+// retryTransport wraps an http.RoundTripper and retries on 429 Too Many Requests.
+type retryTransport struct {
+	base       http.RoundTripper
+	maxRetries int
+}
+
+func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for attempt := 0; attempt <= t.maxRetries; attempt++ {
+		resp, err = t.base.RoundTrip(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusTooManyRequests {
+			return resp, nil
+		}
+
+		retryAfter := resp.Header.Get("Retry-After")
+		delay := time.Duration(attempt+1) * time.Second
+		if seconds, parseErr := strconv.Atoi(retryAfter); parseErr == nil {
+			delay = time.Duration(seconds) * time.Second
+		}
+
+		_ = resp.Body.Close()
+		select {
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		case <-time.After(delay):
+		}
+	}
+
+	return resp, nil
+}
 
 type campaignsService struct {
 	tokensRepo repository.UserTokensRepository
@@ -25,6 +70,12 @@ func newCampaignsService(tokensRepo repository.UserTokensRepository, adsCfg *con
 	return &campaignsService{
 		tokensRepo: tokensRepo,
 		adsCfg:     adsCfg,
+		httpClient: &http.Client{
+			Transport: &retryTransport{
+				base:       http.DefaultTransport,
+				maxRetries: maxRetries,
+			},
+		},
 	}
 }
 
@@ -131,6 +182,7 @@ func (s *campaignsService) GetProfiles(ctx context.Context, userID uuid.UUID) ([
 	for sellerID, profiles := range sellerMap {
 		sellers = append(sellers, contracts.Seller{
 			ID:       sellerID,
+			Name:     profiles[0].AccountName,
 			Profiles: profiles,
 		})
 	}
@@ -138,7 +190,7 @@ func (s *campaignsService) GetProfiles(ctx context.Context, userID uuid.UUID) ([
 	return sellers, nil
 }
 
-var listCampaignOptions amazonadsmodels.ListCampaignsOptions = amazonadsmodels.ListCampaignsOptions{
+var listCampaignOptions = amazonadsmodels.ListCampaignsOptions{
 	AdProductFilter: amazonadsmodels.Filter[amazonadsmodels.AdProduct]{
 		Include: []amazonadsmodels.AdProduct{amazonadsmodels.AdProductSP},
 	},
@@ -175,15 +227,80 @@ func (s *campaignsService) GetCampaigns(ctx context.Context, userID uuid.UUID, p
 		return nil, err
 	}
 
-	campaignDTOs := make([]contracts.Campaign, 0, len(campaigns))
-	for _, campaign := range campaigns {
-		campaignDTOs = append(campaignDTOs, contracts.Campaign{
-			ID:       campaign.CampaignID,
-			Name:     campaign.Name,
-			AdGroups: []contracts.AdGroup{},
-		})
+	type campaignResult struct {
+		index    int
+		campaign contracts.Campaign
+		err      error
+	}
 
-		// TODO: Get adgroups
+	results := make(chan campaignResult, len(campaigns))
+	sem := make(chan struct{}, maxConcurrentRequests)
+	var wg sync.WaitGroup
+
+	for i, campaign := range campaigns {
+		// This field must exist on Sponsored Products Campaigns queries
+		if campaign.AutoCreationSettings == nil || campaign.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
+			log.Print("Something went wrong in request, no autoCreationSettings for SP Campaign", campaign.CampaignID)
+			continue
+		}
+		// TODO: Skip non-AUTO (Amazon-managed) campaigns
+		//if !campaign.AutoCreationSettings.AutoManageCampaign {
+		//	continue
+		//}
+
+		wg.Add(1)
+		go func(i int, camp amazonadsmodels.Campaign) {
+			defer wg.Done()
+
+			sem <- struct{}{} // acquire
+			adGroups, err := adsClient.AdGroupsService.GetAdGroups(ctx, profileID, &amazonadsmodels.ListAdGroupsOptions{
+				AdProductFilter: amazonadsmodels.Filter[amazonadsmodels.AdProduct]{
+					Include: []amazonadsmodels.AdProduct{amazonadsmodels.AdProductSP},
+				},
+				CampaignIDFilter: &amazonadsmodels.Filter[string]{
+					Include: []string{camp.CampaignID},
+				},
+				StateFilter: &amazonadsmodels.Filter[amazonadsmodels.State]{
+					Include: []amazonadsmodels.State{amazonadsmodels.StateEnabled},
+				},
+			})
+			<-sem // release
+			if err != nil {
+				results <- campaignResult{i, contracts.Campaign{}, err}
+				return
+			}
+
+			adGroupDTOs := make([]contracts.AdGroup, 0, len(adGroups))
+			for _, ag := range adGroups {
+				if ag.AdProduct != amazonadsmodels.AdProductSP || ag.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
+					log.Print("Fetched AdGroup:", ag.AdGroupID, "does not pass assertions")
+					continue
+				}
+				adGroupDTOs = append(adGroupDTOs, contracts.AdGroup{
+					ID:           ag.AdGroupID,
+					Name:         ag.Name,
+					DefaultBid:   ag.Bid.DefaultBid,
+					CurrencyCode: ag.Bid.CurrencyCode,
+				})
+			}
+
+			results <- campaignResult{i, contracts.Campaign{
+				ID:       camp.CampaignID,
+				Name:     camp.Name,
+				AdGroups: adGroupDTOs,
+			}, nil}
+		}(i, campaign)
+	}
+
+	wg.Wait()
+	close(results)
+
+	campaignDTOs := make([]contracts.Campaign, 0, len(campaigns))
+	for r := range results {
+		if r.err != nil {
+			return nil, fmt.Errorf("failed to fetch ad groups for campaign %s: %w", campaigns[r.index].CampaignID, r.err)
+		}
+		campaignDTOs = append(campaignDTOs, r.campaign)
 	}
 
 	return campaignDTOs, nil
