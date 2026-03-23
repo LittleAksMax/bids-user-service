@@ -214,7 +214,7 @@ func (s *campaignsService) GetCampaigns(ctx context.Context, userID uuid.UUID, p
 	} else if region == "FE" && tokens.RefreshTokenFE != nil {
 		refreshToken = *tokens.RefreshTokenFE
 	} else {
-		return nil, fmt.Errorf("invalid region %s; maybe no registered refresh refreshToken", region)
+		return nil, fmt.Errorf("invalid region %s; maybe no registered refresh token", region)
 	}
 
 	adsClient, err := s.newAdsClient(refreshToken, region)
@@ -222,38 +222,45 @@ func (s *campaignsService) GetCampaigns(ctx context.Context, userID uuid.UUID, p
 		return nil, err
 	}
 
-	campaigns, err := adsClient.CampaignsService.GetCampaigns(ctx, profileID, &listCampaignOptions)
-	if err != nil {
-		return nil, err
+	// Paginate through all campaigns and collect the ones we care about
+	campaignPaginator := adsClient.CampaignsService.GetCampaigns(profileID, &listCampaignOptions)
+
+	var filteredCampaigns []amazonadsmodels.Campaign
+	for campaignPaginator.HasNext() {
+		page, err := campaignPaginator.Next(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, campaign := range page {
+			if campaign.AutoCreationSettings == nil || campaign.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
+				log.Print("Something went wrong in request, no autoCreationSettings for SP Campaign", campaign.CampaignID)
+				continue
+			}
+			if !campaign.AutoCreationSettings.AutoCreateTargets {
+				continue
+			}
+			filteredCampaigns = append(filteredCampaigns, campaign)
+		}
 	}
 
+	// Step 2: Fan out goroutines per campaign to fetch ad groups (with semaphore)
 	type campaignResult struct {
 		index    int
 		campaign contracts.Campaign
 		err      error
 	}
 
-	results := make(chan campaignResult, len(campaigns))
+	results := make(chan campaignResult, len(filteredCampaigns))
 	sem := make(chan struct{}, maxConcurrentRequests)
 	var wg sync.WaitGroup
 
-	for i, campaign := range campaigns {
-		// This field must exist on Sponsored Products Campaigns queries
-		if campaign.AutoCreationSettings == nil || campaign.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
-			log.Print("Something went wrong in request, no autoCreationSettings for SP Campaign", campaign.CampaignID)
-			continue
-		}
-		// TODO: Skip non-AUTO (Amazon-managed) campaigns
-		//if !campaign.AutoCreationSettings.AutoManageCampaign {
-		//	continue
-		//}
-
+	for i, campaign := range filteredCampaigns {
 		wg.Add(1)
 		go func(i int, camp amazonadsmodels.Campaign) {
 			defer wg.Done()
 
 			sem <- struct{}{} // acquire
-			adGroups, err := adsClient.AdGroupsService.GetAdGroups(ctx, profileID, &amazonadsmodels.ListAdGroupsOptions{
+			adGroupPaginator := adsClient.AdGroupsService.GetAdGroups(profileID, &amazonadsmodels.ListAdGroupsOptions{
 				AdProductFilter: amazonadsmodels.Filter[amazonadsmodels.AdProduct]{
 					Include: []amazonadsmodels.AdProduct{amazonadsmodels.AdProductSP},
 				},
@@ -265,23 +272,29 @@ func (s *campaignsService) GetCampaigns(ctx context.Context, userID uuid.UUID, p
 				},
 			})
 			<-sem // release
-			if err != nil {
-				results <- campaignResult{i, contracts.Campaign{}, err}
-				return
-			}
 
-			adGroupDTOs := make([]contracts.AdGroup, 0, len(adGroups))
-			for _, ag := range adGroups {
-				if ag.AdProduct != amazonadsmodels.AdProductSP || ag.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
-					log.Print("Fetched AdGroup:", ag.AdGroupID, "does not pass assertions")
-					continue
+			// Paginate through all ad groups for this campaign
+			var adGroupDTOs []contracts.AdGroup
+			for adGroupPaginator.HasNext() {
+				sem <- struct{}{} // acquire
+				page, err := adGroupPaginator.Next(ctx)
+				<-sem // release
+				if err != nil {
+					results <- campaignResult{i, contracts.Campaign{}, err}
+					return
 				}
-				adGroupDTOs = append(adGroupDTOs, contracts.AdGroup{
-					ID:           ag.AdGroupID,
-					Name:         ag.Name,
-					DefaultBid:   ag.Bid.DefaultBid,
-					CurrencyCode: ag.Bid.CurrencyCode,
-				})
+				for _, ag := range page {
+					if ag.AdProduct != amazonadsmodels.AdProductSP || ag.MarketplaceScope != amazonadsmodels.MarketplaceScopeSingleMarketplace {
+						log.Print("Fetched AdGroup:", ag.AdGroupID, "does not pass assertions")
+						continue
+					}
+					adGroupDTOs = append(adGroupDTOs, contracts.AdGroup{
+						ID:           ag.AdGroupID,
+						Name:         ag.Name,
+						DefaultBid:   ag.Bid.DefaultBid,
+						CurrencyCode: ag.Bid.CurrencyCode,
+					})
+				}
 			}
 
 			results <- campaignResult{i, contracts.Campaign{
@@ -295,12 +308,12 @@ func (s *campaignsService) GetCampaigns(ctx context.Context, userID uuid.UUID, p
 	wg.Wait()
 	close(results)
 
-	campaignDTOs := make([]contracts.Campaign, 0, len(campaigns))
+	campaignDTOs := make([]contracts.Campaign, len(filteredCampaigns))
 	for r := range results {
 		if r.err != nil {
-			return nil, fmt.Errorf("failed to fetch ad groups for campaign %s: %w", campaigns[r.index].CampaignID, r.err)
+			return nil, fmt.Errorf("failed to fetch ad groups for campaign index %d: %w", r.index, r.err)
 		}
-		campaignDTOs = append(campaignDTOs, r.campaign)
+		campaignDTOs[r.index] = r.campaign
 	}
 
 	return campaignDTOs, nil
