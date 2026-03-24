@@ -7,10 +7,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// BidsSearchOptions represents query options for fetching bids
+type BidsSearchOptions struct {
+	ProfileID  int64
+	CampaignID *string
+	AdGroupID  *string
+	Days       int
+}
+
 // BidsService handles bid-related operations
 type BidsService interface {
-	// GetBidsForCampaign retrieves all bids for a specific campaign
-	GetBidsForCampaign(ctx context.Context, campaignID string) ([]*contracts.BidResponse, error)
+	// SearchBids retrieves bids based on search options (profile, campaign, adgroup, days)
+	SearchBids(ctx context.Context, opts *BidsSearchOptions) ([]*contracts.BidResponse, error)
 
 	// CreateBid creates a new bid for a user
 	CreateBid(ctx context.Context, userID uuid.UUID, req *contracts.BidRequest) (*contracts.BidResponse, error)

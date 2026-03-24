@@ -13,12 +13,14 @@ import (
 // Bid represents a bid entry
 type Bid struct {
 	UserID     uuid.UUID
+	ProfileID  int64
 	CampaignID string
 	AdGroupID  string
 	PolicyID   string
 	FromBid    float64   // The original bid value
 	ToBid      float64   // The new bid value
 	ChangeDate time.Time // When the bid change was made
+	IsLive     bool      // Whether the bid is currently live
 }
 
 // BidsRepository defines the interface for bid operations
@@ -42,7 +44,9 @@ type BidsRepository interface {
 // BidFilters represents optional filters for querying bids
 type BidFilters struct {
 	UserID     *uuid.UUID
+	ProfileID  *int64
 	CampaignID *string
+	AdGroupID  *string
 	PolicyID   *string
 	StartDate  *time.Time
 	EndDate    *time.Time
@@ -60,7 +64,7 @@ func NewBidsRepository(db *sql.DB) BidsRepository {
 
 func (r *bidsRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*Bid, error) {
 	query := `
-		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date
+		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
 		FROM bids
 		WHERE user_id = $1
 		ORDER BY campaign_id
@@ -70,14 +74,16 @@ func (r *bidsRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("query bids: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return r.scanBids(rows)
 }
 
 func (r *bidsRepository) GetByUserIDAndCampaignID(ctx context.Context, userID uuid.UUID, campaignID string) (*Bid, error) {
 	query := `
-		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date
+		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
 		FROM bids
 		WHERE user_id = $1 AND campaign_id = $2
 	`
@@ -91,6 +97,7 @@ func (r *bidsRepository) GetByUserIDAndCampaignID(ctx context.Context, userID uu
 		&bid.FromBid,
 		&bid.ToBid,
 		&bid.ChangeDate,
+		&bid.IsLive,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -105,7 +112,7 @@ func (r *bidsRepository) GetByUserIDAndCampaignID(ctx context.Context, userID uu
 
 func (r *bidsRepository) GetByCampaignID(ctx context.Context, campaignID string) ([]*Bid, error) {
 	query := `
-		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date
+		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
 		FROM bids
 		WHERE campaign_id = $1
 		ORDER BY user_id
@@ -115,15 +122,17 @@ func (r *bidsRepository) GetByCampaignID(ctx context.Context, campaignID string)
 	if err != nil {
 		return nil, fmt.Errorf("query bids: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return r.scanBids(rows)
 }
 
 func (r *bidsRepository) Create(ctx context.Context, bid *Bid) error {
 	query := `
-		INSERT INTO bids (user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO bids (user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -134,6 +143,7 @@ func (r *bidsRepository) Create(ctx context.Context, bid *Bid) error {
 		bid.FromBid,
 		bid.ToBid,
 		bid.ChangeDate,
+		bid.IsLive,
 	)
 
 	if err != nil {
@@ -143,46 +153,99 @@ func (r *bidsRepository) Create(ctx context.Context, bid *Bid) error {
 	return nil
 }
 
-func (r *bidsRepository) ListWithFilters(ctx context.Context, filters *BidFilters) ([]*Bid, error) {
-	query := `
-		SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date
-		FROM bids
-		WHERE 1=1
-	`
+func (r *bidsRepository) ListWithFilters(ctx context.Context, filters *BidFilters) ([]*Bid, error) { // If filtering by profile, we need to join through attached_policies
+	needsJoin := filters.ProfileID != nil
+
+	var query string
+	if needsJoin {
+		query = `
+			SELECT b.user_id, b.campaign_id, b.adgroup_id, b.policy_id, b.from_bid, b.to_bid, b.change_date, b.is_live
+			FROM bids b
+			JOIN attached_policies ap ON b.adgroup_id = ap.adgroup_id
+			WHERE 1=1
+		`
+	} else {
+		query = `
+			SELECT user_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
+			FROM bids
+			WHERE 1=1
+		`
+	}
+
 	args := []interface{}{}
 	argPos := 1
 
 	if filters.UserID != nil {
-		query += fmt.Sprintf(" AND user_id = $%d", argPos)
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.user_id = $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND user_id = $%d", argPos)
+		}
 		args = append(args, *filters.UserID)
 		argPos++
 	}
 
+	if filters.ProfileID != nil {
+		query += fmt.Sprintf(" AND ap.profile_id = $%d", argPos)
+		args = append(args, *filters.ProfileID)
+		argPos++
+	}
+
 	if filters.CampaignID != nil {
-		query += fmt.Sprintf(" AND campaign_id = $%d", argPos)
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.campaign_id = $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND campaign_id = $%d", argPos)
+		}
 		args = append(args, *filters.CampaignID)
 		argPos++
 	}
 
+	if filters.AdGroupID != nil {
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.adgroup_id = $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND adgroup_id = $%d", argPos)
+		}
+		args = append(args, *filters.AdGroupID)
+		argPos++
+	}
+
 	if filters.PolicyID != nil {
-		query += fmt.Sprintf(" AND policy_id = $%d", argPos)
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.policy_id = $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND policy_id = $%d", argPos)
+		}
 		args = append(args, *filters.PolicyID)
 		argPos++
 	}
 
 	if filters.StartDate != nil {
-		query += fmt.Sprintf(" AND change_date >= $%d", argPos)
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.change_date >= $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND change_date >= $%d", argPos)
+		}
 		args = append(args, *filters.StartDate)
 		argPos++
 	}
 
 	if filters.EndDate != nil {
-		query += fmt.Sprintf(" AND change_date <= $%d", argPos)
+		if needsJoin {
+			query += fmt.Sprintf(" AND b.change_date <= $%d", argPos)
+		} else {
+			query += fmt.Sprintf(" AND change_date <= $%d", argPos)
+		}
 		args = append(args, *filters.EndDate)
 		argPos++
 	}
 
-	query += " ORDER BY user_id, campaign_id"
+	if needsJoin {
+		query += " ORDER BY b.adgroup_id, b.change_date"
+	} else {
+		query += " ORDER BY adgroup_id, change_date"
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -209,6 +272,7 @@ func (r *bidsRepository) scanBids(rows *sql.Rows) ([]*Bid, error) {
 			&bid.FromBid,
 			&bid.ToBid,
 			&bid.ChangeDate,
+			&bid.IsLive,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan bid: %w", err)

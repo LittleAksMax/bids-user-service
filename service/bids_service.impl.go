@@ -20,23 +20,39 @@ func newBidsService(bidsRepo repository.BidsRepository) BidsService {
 	}
 }
 
-func (s *bidsService) GetBidsForCampaign(ctx context.Context, campaignID string) ([]*contracts.BidResponse, error) {
-	bids, err := s.bidsRepo.GetByCampaignID(ctx, campaignID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get bids: %w", err)
+func (s *bidsService) SearchBids(ctx context.Context, opts *BidsSearchOptions) ([]*contracts.BidResponse, error) {
+	startDate := time.Now().AddDate(0, 0, -opts.Days)
+
+	filters := &repository.BidFilters{
+		ProfileID: &opts.ProfileID,
+		StartDate: &startDate,
 	}
 
-	responses := make([]*contracts.BidResponse, len(bids))
-	for i, bid := range bids {
-		responses[i] = &contracts.BidResponse{
+	if opts.CampaignID != nil {
+		filters.CampaignID = opts.CampaignID
+	}
+	if opts.AdGroupID != nil {
+		filters.AdGroupID = opts.AdGroupID
+	}
+
+	bids, err := s.bidsRepo.ListWithFilters(ctx, filters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search bids: %w", err)
+	}
+
+	responses := make([]*contracts.BidResponse, 0, len(bids))
+	for _, bid := range bids {
+		responses = append(responses, &contracts.BidResponse{
 			UserID:     bid.UserID,
+			ProfileID:  bid.ProfileID,
 			CampaignID: bid.CampaignID,
 			AdGroupID:  bid.AdGroupID,
 			PolicyID:   bid.PolicyID,
 			FromBid:    bid.FromBid,
 			ToBid:      bid.ToBid,
 			ChangeDate: bid.ChangeDate,
-		}
+			IsLive:     bid.IsLive,
+		})
 	}
 
 	return responses, nil
@@ -51,6 +67,7 @@ func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *cont
 		FromBid:    req.FromBid,
 		ToBid:      req.ToBid,
 		ChangeDate: time.Now(),
+		IsLive:     false,
 	}
 
 	if err := s.bidsRepo.Create(ctx, bid); err != nil {
@@ -65,5 +82,6 @@ func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *cont
 		FromBid:    bid.FromBid,
 		ToBid:      bid.ToBid,
 		ChangeDate: bid.ChangeDate,
+		IsLive:     bid.IsLive,
 	}, nil
 }

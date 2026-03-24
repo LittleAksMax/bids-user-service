@@ -35,3 +35,9 @@ func NewAuthService(db *sql.DB, adsCfg *config.AmazonAdsConfig) AuthService {
 func NewLWAStateService(key [32]byte) (LWAStateService, error) {
 	return newLWAStateService(key)
 }
+
+// NewAttachmentService creates a new attachment service
+func NewAttachmentService(db *sql.DB) AttachmentService {
+	attachedPoliciesRepo := repository.NewAttachedPoliciesRepository(db)
+	return newAttachmentService(attachedPoliciesRepo)
+}

@@ -43,6 +43,7 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 	tokensService := service.NewTokensService(pool)
 	campaignsService := service.NewCampaignsService(pool, cfg.Ads)
 	authService := service.NewAuthService(pool, cfg.Ads)
+	attachmentService := service.NewAttachmentService(pool)
 
 	// Create request cache from existing Redis connection
 	requestCache := cache.NewRedisRequestCache(redisCache.Client)
@@ -57,6 +58,10 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 	cc := campaignsController{
 		campaignsService: campaignsService,
 		cache:            requestCache,
+	}
+
+	atc := attachmentController{
+		attachmentService: attachmentService,
 	}
 
 	redirectURL, err := url.Parse(cfg.Ads.RedirectURI)
@@ -77,7 +82,7 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 		redirectUri:     redirectURL,
 	}
 
-	RegisterRoutes(r, bc, tc, cc, ac, cfg.Auth, healthCheckers)
+	RegisterRoutes(r, bc, tc, cc, ac, atc, cfg.Auth, healthCheckers)
 
 	return r
 }

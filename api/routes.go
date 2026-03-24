@@ -54,6 +54,7 @@ func RegisterRoutes(
 	tc tokensController,
 	cc campaignsController,
 	ac authController,
+	atc attachmentController,
 	authCfg *config.AuthConfig,
 	healthCheckers map[string]health.HealthChecker,
 ) {
@@ -98,50 +99,47 @@ func RegisterRoutes(
 	})
 
 	// Authenticated routes
-	r.Route("/users", func(r chi.Router) {
-		r.Use(
-			requests.ValidateAccessToken(
-				authCfg.SharedSecret,
-				authCfg.AccessTokenSecret,
-				authCfg.MaxSkew,
-				authCfg.ClaimsHeader,
-				authCfg.TimestampHeader,
-				authCfg.SignatureHeader,
-			),
-			requests.EnsureValidSubject(
-				authCfg.ClaimsHeader,
-				uuidSubjectKey,
-			),
-		)
-
-		// Bids endpoints
-		r.Get("/bids/{campaignID}", bc.GetBidsForCampaign)
-		r.Post("/bids", bc.CreateBid)
-	})
-
 	r.Route("/user", func(r chi.Router) {
-		r.Use(
-			requests.ValidateAccessToken(
-				authCfg.SharedSecret,
-				authCfg.AccessTokenSecret,
-				authCfg.MaxSkew,
-				authCfg.ClaimsHeader,
-				authCfg.TimestampHeader,
-				authCfg.SignatureHeader,
-			),
-			requests.EnsureValidSubject(
-				authCfg.ClaimsHeader,
-				uuidSubjectKey,
-			),
-		)
+		r.Group(func(r chi.Router) {
+			r.Use(
+				requests.ValidateAccessToken(
+					authCfg.SharedSecret,
+					authCfg.AccessTokenSecret,
+					authCfg.MaxSkew,
+					authCfg.ClaimsHeader,
+					authCfg.TimestampHeader,
+					authCfg.SignatureHeader,
+				),
+				requests.EnsureValidSubject(
+					authCfg.ClaimsHeader,
+					uuidSubjectKey,
+				),
+			)
 
-		// Tokens endpoints
-		r.Get("/tokens", tc.GetUserTokens)
+			// Attaching policies
+			r.Route("/attach", func(r chi.Router) {
+				r.Get("/{profileID}", atc.GetAttachedPolicies)
+				r.Put("/", atc.AttachPolicy)
+				r.Delete("/", atc.DetachPolicy)
+			})
 
-		r.Route("/profiles", func(r chi.Router) {
-			// Campaigns endpoint
-			r.Get("/", cc.GetProfiles)
-			r.Get("/{region}/{profileID}/campaigns", cc.GetCampaigns)
+			// Bids endpoints
+			r.Route("/bids", func(r chi.Router) {
+				r.Get("/{profileID}", bc.GetBidsForProfile)
+				r.Get("/{profileID}/{campaignID}", bc.GetBidsForCampaign)
+				r.Get("/{profileID}/{campaignID}/{adGroupID}", bc.GetBidsForAdGroup)
+			})
+
+			// Tokens endpoints
+			r.Get("/tokens", tc.GetUserTokens)
+
+			r.Route("/profiles", func(r chi.Router) {
+				// Campaigns endpoint
+				r.Get("/", cc.GetProfiles)
+				r.Get("/{region}/{profileID}/campaigns", cc.GetCampaigns)
+			})
 		})
+
+		r.Post("/bids", bc.CreateBid)
 	})
 }

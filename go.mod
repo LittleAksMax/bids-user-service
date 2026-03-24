@@ -14,6 +14,7 @@ require (
 )
 
 replace github.com/LittleAksMax/amazon-ads-api-sdk-go => ../amazon-ads-api-go-sdk
+replace github.com/LittleAksMax/bids-util => ../bids-util
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

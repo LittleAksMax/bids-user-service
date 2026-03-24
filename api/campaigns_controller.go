@@ -63,9 +63,6 @@ func (cc *campaignsController) GetProfiles(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-const profileIDPath = "profileID"
-const regionPath = "region"
-
 func (cc *campaignsController) GetCampaigns(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(uuidSubjectKey).(uuid.UUID)
 

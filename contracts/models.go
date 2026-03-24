@@ -1,44 +1,6 @@
 package contracts
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
-
-// BidRequest represents a request to create a bid
-type BidRequest struct {
-	CampaignID string  `json:"campaign_id"`
-	AdGroupID  string  `json:"adgroup_id"`
-	PolicyID   string  `json:"policy_id"`
-	FromBid    float64 `json:"from_bid"`
-	ToBid      float64 `json:"to_bid"`
-}
-
-// BidResponse represents a bid in the response
-type BidResponse struct {
-	UserID     uuid.UUID `json:"user_id"`
-	CampaignID string    `json:"campaign_id"`
-	AdGroupID  string    `json:"adgroup_id"`
-	PolicyID   string    `json:"policy_id"`
-	FromBid    float64   `json:"from_bid"`
-	ToBid      float64   `json:"to_bid"`
-	ChangeDate time.Time `json:"change_date"`
-}
-
-// UserTokensResponse represents user refresh tokens
-type UserTokensResponse struct {
-	UserID         uuid.UUID `json:"user_id"`
-	RefreshTokenEU *string   `json:"refresh_token_eu"`
-	RefreshTokenUS *string   `json:"refresh_token_us"`
-	RefreshTokenFE *string   `json:"refresh_token_fe"`
-}
-
-// ProcessTokenRequest represents the callback from Amazon LwA
-type ProcessTokenRequest struct {
-	Code  string `json:"code"`
-	State string `json:"state"`
-}
+import "github.com/google/uuid"
 
 // Campaign represents a campaign with nested structure
 type Campaign struct {
@@ -70,4 +32,14 @@ type RegionProfile struct {
 	AccountID   string `json:"account_id"`
 	AccountName string `json:"account_name"`
 	AccountType string `json:"account_type"`
+}
+
+// AttachedPolicy represents a policy attached to an ad group for a user
+type AttachedPolicy struct {
+	AdGroupID  string
+	PolicyID   string
+	UserID     uuid.UUID
+	ProfileID  int64
+	CampaignID string
+	IsLive     bool
 }
