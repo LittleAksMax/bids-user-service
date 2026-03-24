@@ -1,18 +1,13 @@
 package contracts
 
-// ProcessTokenRequest represents the callback from Amazon LwA
-type ProcessTokenRequest struct {
-	Code  string `json:"code"`
-	State string `json:"state"`
-}
-
-// BidRequest represents a request to create a bid
-type BidRequest struct {
-	CampaignID string  `json:"campaign_id"`
-	AdGroupID  string  `json:"adgroup_id"`
-	PolicyID   string  `json:"policy_id"`
-	FromBid    float64 `json:"from_bid"`
-	ToBid      float64 `json:"to_bid"`
+// CreateBidRequest represents a request to create a bid
+type CreateBidRequest struct {
+	ProfileID  int64   `json:"profile_id" validate:"nonnegative"`
+	CampaignID string  `json:"campaign_id" validate:"required"`
+	AdGroupID  string  `json:"adgroup_id" validate:"required"`
+	PolicyID   string  `json:"policy_id" validate:"required"`
+	FromBid    float64 `json:"from_bid" validate:"nonnegative"`
+	ToBid      float64 `json:"to_bid" validate:"nonnegative"`
 }
 
 // AttachPolicyRequest represents a request to attach a policy to an ad group or campaign
@@ -22,8 +17,8 @@ type BidRequest struct {
 type AttachPolicyRequest struct {
 	AdGroupID  *string `json:"adgroup_id"`
 	CampaignID *string `json:"campaign_id"`
-	PolicyID   string  `json:"policy_id"`
-	ProfileID  int64   `json:"profile_id"`
+	PolicyID   string  `json:"policy_id" validate:"required"`
+	ProfileID  int64   `json:"profile_id" validate:"nonnegative"`
 	IsLive     bool    `json:"is_live"`
 }
 

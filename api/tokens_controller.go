@@ -13,8 +13,7 @@ type tokensController struct {
 }
 
 func (tc *tokensController) GetUserTokens(w http.ResponseWriter, r *http.Request) {
-	userIDRaw := r.Context().Value(uuidSubjectKey)
-	userID, ok := userIDRaw.(uuid.UUID)
+	userID, ok := r.Context().Value(uuidSubjectKey).(uuid.UUID)
 	if !ok {
 		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{
 			Success: false,

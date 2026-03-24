@@ -58,9 +58,10 @@ func (s *bidsService) SearchBids(ctx context.Context, opts *BidsSearchOptions) (
 	return responses, nil
 }
 
-func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *contracts.BidRequest) (*contracts.BidResponse, error) {
+func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *contracts.CreateBidRequest) (*contracts.BidResponse, error) {
 	bid := &repository.Bid{
 		UserID:     userID,
+		ProfileID:  req.ProfileID,
 		CampaignID: req.CampaignID,
 		AdGroupID:  req.AdGroupID,
 		PolicyID:   req.PolicyID,
@@ -76,6 +77,7 @@ func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *cont
 
 	return &contracts.BidResponse{
 		UserID:     bid.UserID,
+		ProfileID:  bid.ProfileID,
 		CampaignID: bid.CampaignID,
 		AdGroupID:  bid.AdGroupID,
 		PolicyID:   bid.PolicyID,

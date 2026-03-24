@@ -21,5 +21,5 @@ type BidsService interface {
 	SearchBids(ctx context.Context, opts *BidsSearchOptions) ([]*contracts.BidResponse, error)
 
 	// CreateBid creates a new bid for a user
-	CreateBid(ctx context.Context, userID uuid.UUID, req *contracts.BidRequest) (*contracts.BidResponse, error)
+	CreateBid(ctx context.Context, userID uuid.UUID, req *contracts.CreateBidRequest) (*contracts.BidResponse, error)
 }

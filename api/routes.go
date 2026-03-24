@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/LittleAksMax/bids-user-service/config"
+	"github.com/LittleAksMax/bids-user-service/contracts"
 	"github.com/LittleAksMax/bids-util/requests"
+	"github.com/LittleAksMax/bids-util/validation"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/LittleAksMax/bids-user-service/health"
@@ -98,6 +100,11 @@ func RegisterRoutes(
 		})
 	})
 
+	validationFuncs := []func(interface{}) error{
+		validation.ValidateRequiredFields,
+		validation.ValidateNonNegativeFields,
+	}
+
 	// Authenticated routes
 	r.Route("/user", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -119,7 +126,8 @@ func RegisterRoutes(
 			// Attaching policies
 			r.Route("/attach", func(r chi.Router) {
 				r.Get("/{profileID}", atc.GetAttachedPolicies)
-				r.Put("/", atc.AttachPolicy)
+
+				r.With(requests.ValidateRequest[contracts.AttachPolicyRequest](validationFuncs)).Put("/", atc.AttachPolicy)
 				r.Delete("/", atc.DetachPolicy)
 			})
 
@@ -140,6 +148,19 @@ func RegisterRoutes(
 			})
 		})
 
-		r.Post("/bids", bc.CreateBid)
+		r.Group(func(r chi.Router) {
+			r.Use(requests.RequireAPIKey(authCfg.APIKey, apiKeyHeader))
+			r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
+		})
+	})
+
+	r.Route("/internal/user", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(
+				requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader),
+				InjectUUIDSubjectFromHeader(serviceUserIDHeader, uuidSubjectKey),
+			)
+			r.Get("/tokens", tc.GetUserTokens)
+		})
 	})
 }

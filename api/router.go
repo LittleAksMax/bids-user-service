@@ -26,7 +26,7 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 		r,
 		cfg.AllowedOrigins,
 		[]string{"GET", "POST", "PUT", "DELETE"},
-		[]string{"Accept", "Authorization", "Content-Type", cfg.Auth.ClaimsHeader, cfg.Auth.TimestampHeader, cfg.Auth.SignatureHeader},
+		[]string{"Accept", "Authorization", "Content-Type", apiKeyHeader, serviceUserIDHeader, cfg.Auth.ClaimsHeader, cfg.Auth.TimestampHeader, cfg.Auth.SignatureHeader},
 		[]string{"Set-Cookie"},
 		true,
 		300,

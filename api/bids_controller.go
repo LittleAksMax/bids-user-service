@@ -153,22 +153,20 @@ func (bc *bidsController) GetBidsForAdGroup(w http.ResponseWriter, r *http.Reque
 }
 
 func (bc *bidsController) CreateBid(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement with API key
-	userIDRaw := r.Context().Value(uuidSubjectKey)
-	userID, ok := userIDRaw.(uuid.UUID)
-	if !ok {
-		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{
-			Success: false,
-			Error:   "invalid user context",
-		})
-		return
-	}
-
-	var req contracts.BidRequest
+	var req contracts.CreateBidRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
 			Success: false,
 			Error:   "invalid request body",
+		})
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
+			Success: false,
+			Error:   "invalid user ID",
 		})
 		return
 	}

@@ -10,6 +10,8 @@ import (
 
 type AuthConfig struct {
 	AccessTokenSecret string
+	APIKey            string
+	ServiceAPIKey     string
 	SharedSecret      string
 	MaxSkew           time.Duration
 	ClaimsHeader      string
@@ -39,11 +41,14 @@ type Config struct {
 
 // Load reads environment variables and returns a Config.
 // Required: DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME, PORT,
-// ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET, VALIDATION_API_KEY, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+// ACCESS_TOKEN_SECRET, X_AUTH_SIG_SECRET, CLAIMS_HEADER, TIMESTAMP_HEADER, SIGNATURE_HEADER,
+// REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, API_KEY, SERVICE_API_KEY
 func Load() (*Config, error) {
 	return &Config{
 		Auth: &AuthConfig{
 			AccessTokenSecret: env.GetStrFromEnv("ACCESS_TOKEN_SECRET"),
+			APIKey:            env.GetStrFromEnv("API_KEY"),
+			ServiceAPIKey:     env.GetStrFromEnv("SERVICE_API_KEY"),
 			SharedSecret:      env.GetStrFromEnv("X_AUTH_SIG_SECRET"),
 			MaxSkew:           env.ParseDurationEnv("MAX_SKEW"),
 			ClaimsHeader:      env.GetStrFromEnv("CLAIMS_HEADER"),
