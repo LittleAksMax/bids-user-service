@@ -1,7 +1,7 @@
 github.com/LittleAksMax/amazon-ads-api-sdk-go v0.0.0-20260323145407-4850c7a26f27 h1:5eLQUlCZBaLtG6XLcMNU8lb5bfYtCof0I8vQVh2Fe58=
 github.com/LittleAksMax/amazon-ads-api-sdk-go v0.0.0-20260323145407-4850c7a26f27/go.mod h1:tqToglAGC5XzEK8/RC79e0VcBWW7sQveb6PSqKt2v4Q=
-github.com/LittleAksMax/bids-util v0.0.6-0.20260325120342-a6b4f928a196 h1:1+QDelVUXPDLMAQ1tDzP8LlzgZLd+T/V4DNzUGCrYdQ=
-github.com/LittleAksMax/bids-util v0.0.6-0.20260325120342-a6b4f928a196/go.mod h1:8Hup3ATpBOUX8de/nALAVS/DgovuZJfgbzFmR2Ic6YI=
+github.com/LittleAksMax/bids-util v0.0.6-0.20260325145548-ce2ed8e49d4c h1:GgPVqchfXDWSnf+tiy2jqfbOijEPkCpWKDSnwiSXASY=
+github.com/LittleAksMax/bids-util v0.0.6-0.20260325145548-ce2ed8e49d4c/go.mod h1:8Hup3ATpBOUX8de/nALAVS/DgovuZJfgbzFmR2Ic6YI=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

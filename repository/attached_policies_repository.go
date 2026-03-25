@@ -14,11 +14,11 @@ import (
 
 // AttachedPoliciesRepository defines the interface for attached policy operations
 type AttachedPoliciesRepository interface {
-	// Upsert inserts or updates an attached policy (keyed by adgroup_id)
-	Upsert(ctx context.Context, policy *contracts.AttachedPolicy) error
+	// UpsertBatch inserts or updates attached policies atomically.
+	UpsertBatch(ctx context.Context, policies []*contracts.AttachedPolicy) error
 
-	// Delete removes an attached policy by ad group ID
-	Delete(ctx context.Context, userID uuid.UUID, adGroupID string) error
+	// DeleteBatch removes attached policies atomically.
+	DeleteBatch(ctx context.Context, userID uuid.UUID, reqs []contracts.DetachPolicyRequest) error
 
 	// GetByAdGroupID retrieves an attached policy by ad group ID
 	GetByAdGroupID(ctx context.Context, userID uuid.UUID, adGroupID string) (*contracts.AttachedPolicy, error)
@@ -39,44 +39,78 @@ func NewAttachedPoliciesRepository(db *sql.DB) AttachedPoliciesRepository {
 	return &attachedPoliciesRepository{db: db}
 }
 
-func (r *attachedPoliciesRepository) Upsert(ctx context.Context, policy *contracts.AttachedPolicy) error {
-	query := `
+func (r *attachedPoliciesRepository) UpsertBatch(ctx context.Context, policies []*contracts.AttachedPolicy) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin upsert attached policies transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	upsertQuery := `
 		INSERT INTO attached_policies (adgroup_id, policy_id, user_id, profile_id, campaign_id, is_live)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (adgroup_id)
-		DO UPDATE SET policy_id = EXCLUDED.policy_id, is_live = EXCLUDED.is_live
+		DO UPDATE SET
+			policy_id = EXCLUDED.policy_id,
+			user_id = EXCLUDED.user_id,
+			profile_id = EXCLUDED.profile_id,
+			campaign_id = EXCLUDED.campaign_id,
+			is_live = EXCLUDED.is_live
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
-		policy.AdGroupID,
-		policy.PolicyID,
-		policy.UserID,
-		policy.ProfileID,
-		policy.CampaignID,
-		policy.IsLive,
-	)
-	if err != nil {
-		return fmt.Errorf("upsert attached policy: %w", err)
+	for _, policy := range policies {
+		if _, err := tx.ExecContext(ctx, upsertQuery,
+			policy.AdGroupID,
+			policy.PolicyID,
+			policy.UserID,
+			policy.ProfileID,
+			policy.CampaignID,
+			policy.IsLive,
+		); err != nil {
+			return fmt.Errorf("upsert attached policy for adgroup %s: %w", policy.AdGroupID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit upsert attached policies transaction: %w", err)
 	}
 
 	return nil
 }
 
-func (r *attachedPoliciesRepository) Delete(ctx context.Context, userID uuid.UUID, adGroupID string) error {
-	query := `DELETE FROM attached_policies WHERE adgroup_id = $1 AND user_id = $2`
-
-	result, err := r.db.ExecContext(ctx, query, adGroupID, userID)
+func (r *attachedPoliciesRepository) DeleteBatch(ctx context.Context, userID uuid.UUID, reqs []contracts.DetachPolicyRequest) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("delete attached policy: %w", err)
+		return fmt.Errorf("begin delete attached policies transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	deleteQuery := `
+		DELETE FROM attached_policies
+		WHERE adgroup_id = $1 AND campaign_id = $2 AND profile_id = $3 AND user_id = $4
+	`
+
+	for _, req := range reqs {
+		result, err := tx.ExecContext(ctx, deleteQuery, req.AdGroupID, req.CampaignID, req.ProfileID, userID)
+		if err != nil {
+			return fmt.Errorf("delete attached policy for adgroup %s: %w", req.AdGroupID, err)
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("get rows affected for adgroup %s: %w", req.AdGroupID, err)
+		}
+		if rowsAffected == 0 {
+			return fmt.Errorf("attached policy not found for adgroup %s", req.AdGroupID)
+		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("attached policy not found for adgroup: %s", adGroupID)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete attached policies transaction: %w", err)
 	}
 
 	return nil

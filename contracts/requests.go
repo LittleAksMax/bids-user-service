@@ -11,21 +11,18 @@ type CreateBidRequest struct {
 	ToBid      float64 `json:"to_bid" validate:"nonnegative"`
 }
 
-// AttachPolicyRequest represents a request to attach a policy to an ad group or campaign
-// At least one of AdGroupID or CampaignID must be provided
-// If both are provided, AdGroupID takes precedence
-// PolicyID, ProfileID, and IsLive are always required
+// AttachPolicyRequest represents a single policy attachment in a batch request.
 type AttachPolicyRequest struct {
-	AdGroupID  *string `json:"adgroup_id"`
-	CampaignID *string `json:"campaign_id"`
-	PolicyID   string  `json:"policy_id" validate:"required"`
-	ProfileID  int64   `json:"profile_id" validate:"nonnegative"`
-	IsLive     bool    `json:"is_live"`
+	AdGroupID  string `json:"adgroup_id" validate:"required"`
+	CampaignID string `json:"campaign_id" validate:"required"`
+	PolicyID   string `json:"policy_id" validate:"required"`
+	ProfileID  int64  `json:"profile_id" validate:"nonnegative"`
+	IsLive     bool   `json:"is_live"`
 }
 
-// DetachPolicyRequest represents a request to detach a policy from an ad group or campaign
-// At least one of AdGroupID or CampaignID must be provided
+// DetachPolicyRequest represents a single policy detachment in a batch request.
 type DetachPolicyRequest struct {
-	AdGroupID  *string `json:"adgroup_id"`
-	CampaignID *string `json:"campaign_id"`
+	AdGroupID  string `json:"adgroup_id" validate:"required"`
+	CampaignID string `json:"campaign_id" validate:"required"`
+	ProfileID  int64  `json:"profile_id" validate:"nonnegative"`
 }

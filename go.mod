@@ -13,7 +13,7 @@ require (
 
 require (
 	github.com/LittleAksMax/amazon-ads-api-sdk-go v0.0.0-20260323145407-4850c7a26f27 // indirect
-	github.com/LittleAksMax/bids-util v0.0.6-0.20260325120342-a6b4f928a196 // indirect
+	github.com/LittleAksMax/bids-util v0.0.6-0.20260325145548-ce2ed8e49d4c // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-chi/cors v1.2.2 // indirect

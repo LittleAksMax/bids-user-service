@@ -36,58 +36,30 @@ func (s *attachmentService) GetAttachedPoliciesForProfile(ctx context.Context, u
 	return attachedDTOs, nil
 }
 
-func (s *attachmentService) AttachPolicyToAdgroup(ctx context.Context, userID uuid.UUID, adGroupID string, policyID string, profileID int64, campaignID string, isLive bool) error {
-	policy := &contracts.AttachedPolicy{
-		AdGroupID:  adGroupID,
-		PolicyID:   policyID,
-		UserID:     userID,
-		ProfileID:  profileID,
-		CampaignID: campaignID,
-		IsLive:     isLive,
-	}
-	if err := s.attachedPoliciesRepo.Upsert(ctx, policy); err != nil {
-		return fmt.Errorf("failed to attach policy: %w", err)
-	}
-	return nil
-}
-
-func (s *attachmentService) AttachPolicyToCampaign(ctx context.Context, userID uuid.UUID, campaignID string, policyID string, profileID int64, isLive bool) error {
-	adgroups, err := s.attachedPoliciesRepo.GetByCampaignID(ctx, userID, campaignID)
-	if err != nil {
-		return fmt.Errorf("failed to get adgroups for campaign: %w", err)
-	}
-	for _, ag := range adgroups {
-		policy := &contracts.AttachedPolicy{
-			AdGroupID:  ag.AdGroupID,
-			PolicyID:   policyID,
+func (s *attachmentService) AttachPolicies(ctx context.Context, userID uuid.UUID, reqs []contracts.AttachPolicyRequest) error {
+	policies := make([]*contracts.AttachedPolicy, 0, len(reqs))
+	for _, req := range reqs {
+		policies = append(policies, &contracts.AttachedPolicy{
+			AdGroupID:  req.AdGroupID,
+			PolicyID:   req.PolicyID,
 			UserID:     userID,
-			ProfileID:  profileID,
-			CampaignID: ag.CampaignID,
-			IsLive:     isLive,
-		}
-		if err := s.attachedPoliciesRepo.Upsert(ctx, policy); err != nil {
-			return fmt.Errorf("failed to attach policy to adgroup %s: %w", ag.AdGroupID, err)
-		}
+			ProfileID:  req.ProfileID,
+			CampaignID: req.CampaignID,
+			IsLive:     req.IsLive,
+		})
 	}
+
+	if err := s.attachedPoliciesRepo.UpsertBatch(ctx, policies); err != nil {
+		return fmt.Errorf("failed to attach policies: %w", err)
+	}
+
 	return nil
 }
 
-func (s *attachmentService) DetachPolicyFromAdgroup(ctx context.Context, userID uuid.UUID, adGroupID string) error {
-	if err := s.attachedPoliciesRepo.Delete(ctx, userID, adGroupID); err != nil {
-		return fmt.Errorf("failed to detach policy for adgroup: %w", err)
+func (s *attachmentService) DetachPolicies(ctx context.Context, userID uuid.UUID, reqs []contracts.DetachPolicyRequest) error {
+	if err := s.attachedPoliciesRepo.DeleteBatch(ctx, userID, reqs); err != nil {
+		return fmt.Errorf("failed to detach policies: %w", err)
 	}
-	return nil
-}
 
-func (s *attachmentService) DetachPolicyFromCampaign(ctx context.Context, userID uuid.UUID, campaignID string) error {
-	policies, err := s.attachedPoliciesRepo.GetByCampaignID(ctx, userID, campaignID)
-	if err != nil {
-		return fmt.Errorf("failed to get policies for campaign: %w", err)
-	}
-	for _, p := range policies {
-		if err := s.attachedPoliciesRepo.Delete(ctx, userID, p.AdGroupID); err != nil {
-			return fmt.Errorf("failed to detach policy for adgroup %s: %w", p.AdGroupID, err)
-		}
-	}
 	return nil
 }

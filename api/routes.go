@@ -127,9 +127,8 @@ func RegisterRoutes(
 			// Attaching policies
 			r.Route("/attach", func(r chi.Router) {
 				r.Get("/{profileID}", atc.GetAttachedPolicies)
-
-				r.With(requests.ValidateRequest[contracts.AttachPolicyRequest](validationFuncs)).Put("/", atc.AttachPolicy)
-				r.Delete("/", atc.DetachPolicy)
+				r.With(requests.ValidateRequest[[]contracts.AttachPolicyRequest](validationFuncs)).Put("/", atc.AttachPolicy)
+				r.With(requests.ValidateRequest[[]contracts.DetachPolicyRequest](validationFuncs)).Delete("/", atc.DetachPolicy)
 			})
 
 			// Bids endpoints
@@ -150,7 +149,7 @@ func RegisterRoutes(
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(requests.RequireAPIKey(authCfg.APIKey, apiKeyHeader))
+			r.Use(requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader))
 			r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
 		})
 	})

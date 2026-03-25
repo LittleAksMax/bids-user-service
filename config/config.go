@@ -10,7 +10,6 @@ import (
 
 type AuthConfig struct {
 	AccessTokenSecret string
-	APIKey            string
 	ServiceAPIKey     string
 	SharedSecret      string
 	MaxSkew           time.Duration
@@ -47,7 +46,6 @@ func Load() (*Config, error) {
 	return &Config{
 		Auth: &AuthConfig{
 			AccessTokenSecret: env.GetStrFromEnv("ACCESS_TOKEN_SECRET"),
-			APIKey:            env.GetStrFromEnv("API_KEY"),
 			ServiceAPIKey:     env.GetStrFromEnv("SERVICE_API_KEY"),
 			SharedSecret:      env.GetStrFromEnv("X_AUTH_SIG_SECRET"),
 			MaxSkew:           env.ParseDurationEnv("MAX_SKEW"),
