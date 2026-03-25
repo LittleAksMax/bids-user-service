@@ -102,6 +102,7 @@ func RegisterRoutes(
 
 	validationFuncs := []func(interface{}) error{
 		validation.ValidateRequiredFields,
+		validation.ValidateUUIDs,
 		validation.ValidateNonNegativeFields,
 	}
 

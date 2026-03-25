@@ -2,6 +2,7 @@ package contracts
 
 // CreateBidRequest represents a request to create a bid
 type CreateBidRequest struct {
+	UserID     string  `json:"user_id" validate:"uuid"`
 	ProfileID  int64   `json:"profile_id" validate:"nonnegative"`
 	CampaignID string  `json:"campaign_id" validate:"required"`
 	AdGroupID  string  `json:"adgroup_id" validate:"required"`
