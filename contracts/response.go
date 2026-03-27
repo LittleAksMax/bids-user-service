@@ -33,3 +33,9 @@ type AttachedPolicyDTO struct {
 	PolicyID   string `json:"policy_id"`
 	IsLive     bool   `json:"is_live"`
 }
+
+type ProfilePolicyScheduleResponse struct {
+	ProfileID       int64     `json:"profile_id"`
+	DueAt           time.Time `json:"due_at"`
+	IntervalMinutes int64     `json:"interval_minutes"`
+}

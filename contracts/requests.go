@@ -26,3 +26,17 @@ type DetachPolicyRequest struct {
 	CampaignID string `json:"campaign_id" validate:"required"`
 	ProfileID  int64  `json:"profile_id" validate:"nonnegative"`
 }
+
+type DriveProfilePolicyScheduleRequest struct {
+	UserID    string `json:"user_id" validate:"uuid"`
+	ProfileID int64  `json:"profile_id" validate:"nonnegative"`
+}
+
+type CreateProfilePolicyScheduleRequest struct {
+	ProfileID       int64 `json:"profile_id" validate:"nonnegative"`
+	IntervalMinutes int64 `json:"interval_minutes" validate:"nonnegative"`
+}
+
+type DeleteProfilePolicyScheduleRequest struct {
+	ProfileID int64 `json:"profile_id" validate:"nonnegative"`
+}

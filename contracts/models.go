@@ -1,6 +1,10 @@
 package contracts
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // Campaign represents a campaign with nested structure
 type Campaign struct {
@@ -42,4 +46,24 @@ type AttachedPolicy struct {
 	ProfileID  int64
 	CampaignID string
 	IsLive     bool
+}
+
+// PolicySchedule represents a persisted schedule for an attached policy.
+type ProfilePolicySchedule struct {
+	UserID          uuid.UUID `json:"user_id"`
+	ProfileID       int64     `json:"profile_id"`
+	DueAt           time.Time `json:"due_at"`
+	IntervalMinutes int64     `json:"interval_minutes"`
+	IsActive        bool      `json:"-"`
+}
+
+type PolicySchedule struct {
+	ScheduleID      uuid.UUID `json:"schedule_id"`
+	UserID          uuid.UUID `json:"user_id"`
+	ProfileID       int64     `json:"profile_id"`
+	CampaignID      string    `json:"campaign_id"`
+	AdGroupID       string    `json:"adgroup_id"`
+	PolicyID        string    `json:"policy_id"`
+	DueAt           time.Time `json:"due_at"`
+	IntervalSeconds int64     `json:"interval_seconds"`
 }

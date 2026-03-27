@@ -57,6 +57,7 @@ func RegisterRoutes(
 	cc campaignsController,
 	ac authController,
 	atc attachmentController,
+	psc policySchedulesController,
 	authCfg *config.AuthConfig,
 	healthCheckers map[string]health.HealthChecker,
 ) {
@@ -146,6 +147,12 @@ func RegisterRoutes(
 				r.Get("/", cc.GetProfiles)
 				r.Get("/{region}/{profileID}/campaigns", cc.GetCampaigns)
 			})
+
+			r.Route("/schedules", func(r chi.Router) {
+				r.Get("/", psc.GetUserSchedules)
+				r.With(requests.ValidateRequest[contracts.CreateProfilePolicyScheduleRequest](validationFuncs)).Post("/", psc.CreateUserSchedule)
+				r.With(requests.ValidateRequest[contracts.DeleteProfilePolicyScheduleRequest](validationFuncs)).Delete("/", psc.DeleteUserSchedule)
+			})
 		})
 
 		r.Group(func(r chi.Router) {
@@ -161,6 +168,14 @@ func RegisterRoutes(
 				InjectUUIDSubjectFromHeader(serviceUserIDHeader, uuidSubjectKey),
 			)
 			r.Get("/tokens", tc.GetUserTokens)
+		})
+	})
+
+	r.Route("/internal/schedules", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader))
+			r.Get("/due", psc.GetDueSchedules)
+			r.With(requests.ValidateRequest[contracts.DriveProfilePolicyScheduleRequest](validationFuncs)).Post("/drive", psc.DriveSchedule)
 		})
 	})
 }

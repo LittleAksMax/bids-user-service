@@ -41,3 +41,9 @@ func NewAttachmentService(db *sql.DB) AttachmentService {
 	attachedPoliciesRepo := repository.NewAttachedPoliciesRepository(db)
 	return newAttachmentService(attachedPoliciesRepo)
 }
+
+// NewPolicySchedulesService creates a new policy schedules service.
+func NewPolicySchedulesService(db *sql.DB) PolicySchedulesService {
+	policySchedulesRepo := repository.NewPolicySchedulesRepository(db)
+	return newPolicySchedulesService(policySchedulesRepo)
+}
