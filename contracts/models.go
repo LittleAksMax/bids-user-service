@@ -48,13 +48,13 @@ type AttachedPolicy struct {
 	IsLive     bool
 }
 
-// PolicySchedule represents a persisted schedule for an attached policy.
+// ProfilePolicySchedule represents a persisted schedule for an attached policy.
 type ProfilePolicySchedule struct {
 	UserID          uuid.UUID `json:"user_id"`
 	ProfileID       int64     `json:"profile_id"`
 	DueAt           time.Time `json:"due_at"`
 	IntervalMinutes int64     `json:"interval_minutes"`
-	IsActive        bool      `json:"-"`
+	IsActive        bool      `json:"-"` // omitted from client facing payloads
 }
 
 type PolicySchedule struct {

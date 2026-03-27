@@ -27,6 +27,8 @@ type UserTokensResponse struct {
 	RefreshTokenFE *string   `json:"refresh_token_fe"`
 }
 
+type UserAuthenticatedRegionsResponse []string
+
 type AttachedPolicyDTO struct {
 	CampaignID string `json:"campaign_id"`
 	AdGroupID  string `json:"adgroup_id"`

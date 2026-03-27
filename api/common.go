@@ -1,9 +1,6 @@
 package api
 
 const profileIDPath = "profileID"
-const campaignIDPath = "campaignID"
-const adGroupIDPath = "adGroupID"
 const regionPath = "region"
-const apiKeyHeader = "API_KEY"
+const apiKeyHeader = "X-Api-Key"
 const serviceUserIDHeader = "X-User-ID"
-const scheduleIDPath = "scheduleID"

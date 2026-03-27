@@ -140,7 +140,7 @@ func RegisterRoutes(
 			})
 
 			// Tokens endpoints
-			r.Get("/tokens", tc.GetUserTokens)
+			r.Get("/tokens", tc.GetAuthenticatedRegions)
 
 			r.Route("/profiles", func(r chi.Router) {
 				// Campaigns endpoint
