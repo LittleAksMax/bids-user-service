@@ -29,6 +29,23 @@ type UserTokensResponse struct {
 
 type UserAuthenticatedRegionsResponse []string
 
+type CreatedUserLogResponse struct {
+	LogID     uuid.UUID `json:"log_id"`
+	ProfileID int64     `json:"profile_id"`
+	Log       string    `json:"log"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type UserLogResponse struct {
+	Log       string    `json:"log"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type UserLogsPageResponse struct {
+	Logs       []UserLogResponse `json:"logs"`
+	TotalPages int               `json:"total_pages"`
+}
+
 type AttachedPolicyDTO struct {
 	CampaignID string `json:"campaign_id"`
 	AdGroupID  string `json:"adgroup_id"`
@@ -37,7 +54,12 @@ type AttachedPolicyDTO struct {
 }
 
 type ProfilePolicyScheduleResponse struct {
-	ProfileID       int64     `json:"profile_id"`
-	DueAt           time.Time `json:"due_at"`
-	IntervalMinutes int64     `json:"interval_minutes"`
+	SellerName      string              `json:"seller_name"`
+	ProfileID       int64               `json:"profile_id"`
+	DueAt           time.Time           `json:"due_at"`
+	IntervalMinutes int64               `json:"interval_minutes"`
+	State           PolicyScheduleState `json:"state"`
+}
+type PrioritiseScheduleResponse struct {
+	DueAt time.Time `json:"due_at"`
 }

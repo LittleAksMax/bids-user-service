@@ -21,7 +21,7 @@ func newBidsService(bidsRepo repository.BidsRepository) BidsService {
 }
 
 func (s *bidsService) SearchBids(ctx context.Context, opts *BidsSearchOptions) ([]*contracts.BidResponse, error) {
-	startDate := time.Now().AddDate(0, 0, -opts.Days)
+	startDate := time.Now().UTC().AddDate(0, 0, -opts.Days)
 
 	filters := &repository.BidFilters{
 		ProfileID: &opts.ProfileID,
@@ -67,8 +67,8 @@ func (s *bidsService) CreateBid(ctx context.Context, userID uuid.UUID, req *cont
 		PolicyID:   req.PolicyID,
 		FromBid:    req.FromBid,
 		ToBid:      req.ToBid,
-		ChangeDate: time.Now(),
-		IsLive:     false,
+		ChangeDate: time.Now().UTC(),
+		IsLive:     req.IsLive,
 	}
 
 	if err := s.bidsRepo.Create(ctx, bid); err != nil {

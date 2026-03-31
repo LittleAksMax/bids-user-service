@@ -26,5 +26,5 @@ func redisGetWithTTL(ctx context.Context, client *redis.Client, key string) (str
 		return "", time.Time{}, ErrExpired
 	}
 
-	return val, time.Now().Add(ttl), nil
+	return val, time.Now().UTC().Add(ttl), nil
 }

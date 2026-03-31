@@ -47,8 +47,6 @@ func Health(checkers map[string]health.HealthChecker) http.HandlerFunc {
 	}
 }
 
-const uuidSubjectKey = "uuidSubject"
-
 // RegisterRoutes registers all endpoint handlers using the controller methods.
 func RegisterRoutes(
 	r chi.Router,
@@ -58,6 +56,7 @@ func RegisterRoutes(
 	ac authController,
 	atc attachmentController,
 	psc policySchedulesController,
+	lc logsController,
 	authCfg *config.AuthConfig,
 	healthCheckers map[string]health.HealthChecker,
 ) {
@@ -152,12 +151,10 @@ func RegisterRoutes(
 				r.Get("/", psc.GetUserSchedules)
 				r.With(requests.ValidateRequest[contracts.CreateProfilePolicyScheduleRequest](validationFuncs)).Post("/", psc.CreateUserSchedule)
 				r.With(requests.ValidateRequest[contracts.DeleteProfilePolicyScheduleRequest](validationFuncs)).Delete("/", psc.DeleteUserSchedule)
+				r.Post("/prioritise/{profileID}", psc.PrioritiseSchedule)
 			})
-		})
 
-		r.Group(func(r chi.Router) {
-			r.Use(requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader))
-			r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
+			r.Get("/logs/{profileID}", lc.GetUserLogs)
 		})
 	})
 
@@ -165,9 +162,16 @@ func RegisterRoutes(
 		r.Group(func(r chi.Router) {
 			r.Use(
 				requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader),
-				InjectUUIDSubjectFromHeader(serviceUserIDHeader, uuidSubjectKey),
 			)
-			r.Get("/tokens", tc.GetUserTokens)
+			r.Group(func(r chi.Router) {
+				r.Use(requests.InjectUUIDSubjectFromHeader(serviceUserIDHeader, uuidSubjectKey))
+				r.Get("/tokens", tc.GetUserTokens)
+				r.Get("/attach/{profileID}", atc.GetAttachedPolicies)
+				r.Get("/profiles", cc.GetProfiles)
+				r.With(requests.ValidateRequest[contracts.CreateUserLogRequest](validationFuncs)).Post("/logs/{profileID}", lc.CreateUserLog)
+
+			})
+			r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
 		})
 	})
 
@@ -176,6 +180,7 @@ func RegisterRoutes(
 			r.Use(requests.RequireAPIKey(authCfg.ServiceAPIKey, apiKeyHeader))
 			r.Get("/due", psc.GetDueSchedules)
 			r.With(requests.ValidateRequest[contracts.DriveProfilePolicyScheduleRequest](validationFuncs)).Post("/drive", psc.DriveSchedule)
+			r.With(requests.ValidateRequest[contracts.ProcessProfilePolicyScheduleRequest](validationFuncs)).Post("/process", psc.ProcessSchedule)
 		})
 	})
 }

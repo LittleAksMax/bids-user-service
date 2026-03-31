@@ -48,13 +48,36 @@ type AttachedPolicy struct {
 	IsLive     bool
 }
 
+type PolicyScheduleState string
+
+const (
+	PolicyScheduleStateProcessing PolicyScheduleState = "PROCESSING"
+	PolicyScheduleStatePending    PolicyScheduleState = "PENDING"
+	PolicyScheduleStateFailed     PolicyScheduleState = "FAILED"
+	PolicyScheduleStateSomeErrors PolicyScheduleState = "SOME ERRORS"
+)
+
+func ParsePolicyScheduleState(value string) (PolicyScheduleState, bool) {
+	switch PolicyScheduleState(value) {
+	case PolicyScheduleStateProcessing,
+		PolicyScheduleStatePending,
+		PolicyScheduleStateFailed,
+		PolicyScheduleStateSomeErrors:
+		return PolicyScheduleState(value), true
+	default:
+		return "", false
+	}
+}
+
 // ProfilePolicySchedule represents a persisted schedule for an attached policy.
 type ProfilePolicySchedule struct {
-	UserID          uuid.UUID `json:"user_id"`
-	ProfileID       int64     `json:"profile_id"`
-	DueAt           time.Time `json:"due_at"`
-	IntervalMinutes int64     `json:"interval_minutes"`
-	IsActive        bool      `json:"-"` // omitted from client facing payloads
+	UserID          uuid.UUID           `json:"user_id"`
+	ProfileID       int64               `json:"profile_id"`
+	DueAt           time.Time           `json:"due_at"`
+	IntervalMinutes int64               `json:"interval_minutes"`
+	SellerName      string              `json:"seller_name"`
+	State           PolicyScheduleState `json:"state"`
+	IsActive        bool                `json:"-"` // omitted from client facing payloads
 }
 
 type PolicySchedule struct {

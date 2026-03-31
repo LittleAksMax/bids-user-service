@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -153,11 +152,11 @@ func (bc *bidsController) GetBidsForAdGroup(w http.ResponseWriter, r *http.Reque
 }
 
 func (bc *bidsController) CreateBid(w http.ResponseWriter, r *http.Request) {
-	var req contracts.CreateBidRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req := requests.GetRequestBody[contracts.CreateBidRequest](r)
+	if req == nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
 			Success: false,
-			Error:   "invalid request body",
+			Error:   "invalid request",
 		})
 		return
 	}
@@ -171,7 +170,7 @@ func (bc *bidsController) CreateBid(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bid, err := bc.bidsService.CreateBid(r.Context(), userID, &req)
+	bid, err := bc.bidsService.CreateBid(r.Context(), userID, req)
 	if err != nil {
 		requests.WriteJSON(w, http.StatusInternalServerError, requests.APIResponse{
 			Success: false,

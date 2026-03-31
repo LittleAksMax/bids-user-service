@@ -47,3 +47,9 @@ func NewPolicySchedulesService(db *sql.DB) PolicySchedulesService {
 	policySchedulesRepo := repository.NewPolicySchedulesRepository(db)
 	return newPolicySchedulesService(policySchedulesRepo)
 }
+
+// NewLogsService creates a new logs service.
+func NewLogsService(db *sql.DB) LogsService {
+	logsRepo := repository.NewLogsRepository(db)
+	return newLogsService(logsRepo)
+}
