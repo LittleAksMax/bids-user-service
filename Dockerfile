@@ -1,6 +1,8 @@
 # Build stage
 FROM golang:alpine AS builder
 
+RUN apk add --no-cache git ca-certificates
+
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -33,4 +35,3 @@ EXPOSE 8080
 
 # Run the application
 CMD ["./user-service"]
-
