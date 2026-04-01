@@ -3,6 +3,8 @@ module github.com/LittleAksMax/bids-user-service
 go 1.25
 
 require (
+	github.com/LittleAksMax/amazon-ads-api-sdk-go v1.0.0
+	github.com/LittleAksMax/bids-util v1.0.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
@@ -12,8 +14,6 @@ require (
 )
 
 require (
-	github.com/LittleAksMax/amazon-ads-api-sdk-go v0.0.0-20260323145407-4850c7a26f27 // indirect
-	github.com/LittleAksMax/bids-util v0.0.6-0.20260327210050-f404e2207881 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-chi/cors v1.2.2 // indirect
