@@ -9,7 +9,6 @@ import (
 	"github.com/LittleAksMax/bids-user-service/service"
 	"github.com/LittleAksMax/bids-util/requests"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 )
 
 const defaultDays = 30
@@ -32,6 +31,12 @@ func parseDays(r *http.Request) int {
 }
 
 func (bc *bidsController) GetBidsForProfile(w http.ResponseWriter, r *http.Request) {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	profileID, err := strconv.ParseInt(chi.URLParam(r, "profileID"), 10, 64)
 	if err != nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
@@ -42,6 +47,7 @@ func (bc *bidsController) GetBidsForProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	opts := &service.BidsSearchOptions{
+		UserID:    userID,
 		ProfileID: profileID,
 		Days:      parseDays(r),
 	}
@@ -62,6 +68,12 @@ func (bc *bidsController) GetBidsForProfile(w http.ResponseWriter, r *http.Reque
 }
 
 func (bc *bidsController) GetBidsForCampaign(w http.ResponseWriter, r *http.Request) {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	profileID, err := strconv.ParseInt(chi.URLParam(r, "profileID"), 10, 64)
 	if err != nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
@@ -81,6 +93,7 @@ func (bc *bidsController) GetBidsForCampaign(w http.ResponseWriter, r *http.Requ
 	}
 
 	opts := &service.BidsSearchOptions{
+		UserID:     userID,
 		ProfileID:  profileID,
 		CampaignID: &campaignID,
 		Days:       parseDays(r),
@@ -102,6 +115,12 @@ func (bc *bidsController) GetBidsForCampaign(w http.ResponseWriter, r *http.Requ
 }
 
 func (bc *bidsController) GetBidsForAdGroup(w http.ResponseWriter, r *http.Request) {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	profileID, err := strconv.ParseInt(chi.URLParam(r, "profileID"), 10, 64)
 	if err != nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
@@ -130,6 +149,7 @@ func (bc *bidsController) GetBidsForAdGroup(w http.ResponseWriter, r *http.Reque
 	}
 
 	opts := &service.BidsSearchOptions{
+		UserID:     userID,
 		ProfileID:  profileID,
 		CampaignID: &campaignID,
 		AdGroupID:  &adGroupID,
@@ -152,20 +172,17 @@ func (bc *bidsController) GetBidsForAdGroup(w http.ResponseWriter, r *http.Reque
 }
 
 func (bc *bidsController) CreateBid(w http.ResponseWriter, r *http.Request) {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	req := requests.GetRequestBody[contracts.CreateBidRequest](r)
 	if req == nil {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
 			Success: false,
 			Error:   "invalid request",
-		})
-		return
-	}
-
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
-			Success: false,
-			Error:   "invalid user ID",
 		})
 		return
 	}

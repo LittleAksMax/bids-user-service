@@ -6,7 +6,6 @@ import (
 	"github.com/LittleAksMax/bids-user-service/contracts"
 	"github.com/LittleAksMax/bids-user-service/service"
 	"github.com/LittleAksMax/bids-util/requests"
-	"github.com/google/uuid"
 )
 
 type tokensController struct {
@@ -14,11 +13,11 @@ type tokensController struct {
 }
 
 func (tc *tokensController) GetUserTokens(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(uuidSubjectKey).(uuid.UUID)
-	if !ok {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
 		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{
 			Success: false,
-			Error:   "invalid user context",
+			Error:   err.Error(),
 		})
 		return
 	}
@@ -39,11 +38,11 @@ func (tc *tokensController) GetUserTokens(w http.ResponseWriter, r *http.Request
 }
 
 func (tc *tokensController) GetAuthenticatedRegions(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(uuidSubjectKey).(uuid.UUID)
-	if !ok {
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
 		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{
 			Success: false,
-			Error:   "invalid user context",
+			Error:   err.Error(),
 		})
 		return
 	}

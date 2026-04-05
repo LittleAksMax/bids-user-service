@@ -3,14 +3,11 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/LittleAksMax/bids-user-service/contracts"
 	"github.com/google/uuid"
 )
-
-// AttachedPolicy represents a policy attached to an ad group
 
 // AttachedPoliciesRepository defines the interface for attached policy operations
 type AttachedPoliciesRepository interface {
@@ -20,14 +17,8 @@ type AttachedPoliciesRepository interface {
 	// DeleteBatch removes attached policies atomically.
 	DeleteBatch(ctx context.Context, userID uuid.UUID, reqs []contracts.DetachPolicyRequest) error
 
-	// GetByAdGroupID retrieves an attached policy by ad group ID
-	GetByAdGroupID(ctx context.Context, userID uuid.UUID, adGroupID string) (*contracts.AttachedPolicy, error)
-
 	// GetByProfileID retrieves all attached policies for a profile
 	GetByProfileID(ctx context.Context, userID uuid.UUID, profileID int64) ([]*contracts.AttachedPolicy, error)
-
-	// GetByCampaignID retrieves all attached policies for a campaign
-	GetByCampaignID(ctx context.Context, userID uuid.UUID, campaignID string) ([]*contracts.AttachedPolicy, error)
 }
 
 type attachedPoliciesRepository struct {
@@ -116,33 +107,6 @@ func (r *attachedPoliciesRepository) DeleteBatch(ctx context.Context, userID uui
 	return nil
 }
 
-func (r *attachedPoliciesRepository) GetByAdGroupID(ctx context.Context, userID uuid.UUID, adGroupID string) (*contracts.AttachedPolicy, error) {
-	query := `
-		SELECT adgroup_id, policy_id, user_id, profile_id, campaign_id, is_live
-		FROM attached_policies
-		WHERE adgroup_id = $1 AND user_id = $2
-	`
-
-	policy := &contracts.AttachedPolicy{}
-	err := r.db.QueryRowContext(ctx, query, adGroupID, userID).Scan(
-		&policy.AdGroupID,
-		&policy.PolicyID,
-		&policy.UserID,
-		&policy.ProfileID,
-		&policy.CampaignID,
-		&policy.IsLive,
-	)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("attached policy not found for adgroup: %s", adGroupID)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query attached policy: %w", err)
-	}
-
-	return policy, nil
-}
-
 func (r *attachedPoliciesRepository) GetByProfileID(ctx context.Context, userID uuid.UUID, profileID int64) ([]*contracts.AttachedPolicy, error) {
 	query := `
 		SELECT adgroup_id, policy_id, user_id, profile_id, campaign_id, is_live
@@ -152,25 +116,6 @@ func (r *attachedPoliciesRepository) GetByProfileID(ctx context.Context, userID 
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, profileID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("query attached policies: %w", err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	return r.scanPolicies(rows)
-}
-
-func (r *attachedPoliciesRepository) GetByCampaignID(ctx context.Context, userID uuid.UUID, campaignID string) ([]*contracts.AttachedPolicy, error) {
-	query := `
-		SELECT adgroup_id, policy_id, user_id, profile_id, campaign_id, is_live
-		FROM attached_policies
-		WHERE campaign_id = $1 AND user_id = $2
-		ORDER BY adgroup_id
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, campaignID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query attached policies: %w", err)
 	}

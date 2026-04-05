@@ -8,7 +8,6 @@ import (
 	"github.com/LittleAksMax/bids-user-service/contracts"
 	"github.com/LittleAksMax/bids-user-service/service"
 	"github.com/LittleAksMax/bids-util/requests"
-	"github.com/google/uuid"
 )
 
 type authController struct {
@@ -37,13 +36,19 @@ func (ac *authController) LWA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.Context().Value(uuidSubjectKey).(uuid.UUID)
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	redirectTo := r.URL.Query().Get(redirectURIQueryKey)
 	if redirectTo == "" {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{
 			Success: false,
 			Error:   "redirect_uri query param is empty",
 		})
+		return
 	}
 
 	state := contracts.RedirectState{

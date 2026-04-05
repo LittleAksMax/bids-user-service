@@ -64,6 +64,7 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 
 	atc := attachmentController{
 		attachmentService: attachmentService,
+		cache:             requestCache,
 	}
 	psc := policySchedulesController{
 		policySchedulesService: policySchedulesService,

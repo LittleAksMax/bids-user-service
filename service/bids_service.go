@@ -9,6 +9,7 @@ import (
 
 // BidsSearchOptions represents query options for fetching bids
 type BidsSearchOptions struct {
+	UserID     uuid.UUID
 	ProfileID  int64
 	CampaignID *string
 	AdGroupID  *string

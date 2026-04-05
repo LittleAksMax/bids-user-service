@@ -35,7 +35,9 @@ func Migrate(dsn, migrationsDir string) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	goose.SetBaseFS(nil)
 	if err := goose.SetDialect("postgres"); err != nil {

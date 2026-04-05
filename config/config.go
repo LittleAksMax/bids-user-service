@@ -38,10 +38,7 @@ type Config struct {
 	AllowedOrigins []string // CORS allowed origins, read from ALLOWED_ORIGINS (comma-separated)
 }
 
-// Load reads environment variables and returns a Config.
-// Required: DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME, PORT,
-// ACCESS_TOKEN_SECRET, X_AUTH_SIG_SECRET, CLAIMS_HEADER, TIMESTAMP_HEADER, SIGNATURE_HEADER,
-// REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, API_KEY, SERVICE_API_KEY
+// Load reads environment variables and returns a Config
 func Load() (*Config, error) {
 	return &Config{
 		Auth: &AuthConfig{

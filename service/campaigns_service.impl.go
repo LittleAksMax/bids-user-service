@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	amazonads "github.com/LittleAksMax/amazon-ads-api-sdk-go"
 	amazonadsmodels "github.com/LittleAksMax/amazon-ads-api-sdk-go/models"
@@ -24,58 +22,15 @@ const (
 	maxRetries            = 3
 )
 
-// retryTransport wraps an http.RoundTripper and retries on 429 Too Many Requests.
-type retryTransport struct {
-	base       http.RoundTripper
-	maxRetries int
-}
-
-func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	var resp *http.Response
-	var err error
-
-	for attempt := 0; attempt <= t.maxRetries; attempt++ {
-		resp, err = t.base.RoundTrip(req)
-		if err != nil {
-			return nil, err
-		}
-		if resp.StatusCode != http.StatusTooManyRequests {
-			return resp, nil
-		}
-
-		retryAfter := resp.Header.Get("Retry-After")
-		delay := time.Duration(attempt+1) * time.Second
-		if seconds, parseErr := strconv.Atoi(retryAfter); parseErr == nil {
-			delay = time.Duration(seconds) * time.Second
-		}
-
-		_ = resp.Body.Close()
-		select {
-		case <-req.Context().Done():
-			return nil, req.Context().Err()
-		case <-time.After(delay):
-		}
-	}
-
-	return resp, nil
-}
-
 type campaignsService struct {
 	tokensRepo repository.UserTokensRepository
 	adsCfg     *config.AmazonAdsConfig
-	httpClient *http.Client
 }
 
 func newCampaignsService(tokensRepo repository.UserTokensRepository, adsCfg *config.AmazonAdsConfig) CampaignsService {
 	return &campaignsService{
 		tokensRepo: tokensRepo,
 		adsCfg:     adsCfg,
-		httpClient: &http.Client{
-			Transport: &retryTransport{
-				base:       http.DefaultTransport,
-				maxRetries: maxRetries,
-			},
-		},
 	}
 }
 
@@ -90,7 +45,7 @@ func (s *campaignsService) newAdsClient(refreshToken string, region string) (*am
 	client, err := amazonads.NewAmazonAdsAPIClient(&amazonads.Configuration{
 		AuthClient: authClient,
 		Region:     region,
-		HTTPClient: s.httpClient,
+		HTTPClient: &http.Client{},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create ads client for region %s: %w", region, err)

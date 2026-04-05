@@ -30,9 +30,6 @@ type UserTokensRepository interface {
 
 	// SetTokenFE sets the FE refresh token for a user (inserts or updates)
 	SetTokenFE(ctx context.Context, userID uuid.UUID, token string) error
-
-	// Delete removes a user and their tokens
-	Delete(ctx context.Context, userID uuid.UUID) error
 }
 
 // userTokensRepository is the concrete implementation
@@ -113,26 +110,6 @@ func (r *userTokensRepository) SetTokenFE(ctx context.Context, userID uuid.UUID,
 	_, err := r.db.ExecContext(ctx, query, userID, token)
 	if err != nil {
 		return fmt.Errorf("set FE token: %w", err)
-	}
-
-	return nil
-}
-
-func (r *userTokensRepository) Delete(ctx context.Context, userID uuid.UUID) error {
-	query := `DELETE FROM user_tokens WHERE user_id = $1`
-
-	result, err := r.db.ExecContext(ctx, query, userID)
-	if err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("user not found: %s", userID)
 	}
 
 	return nil

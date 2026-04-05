@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -79,9 +78,6 @@ func (s *policySchedulesService) DeleteSchedule(ctx context.Context, userID uuid
 func (s *policySchedulesService) PrioritiseSchedule(ctx context.Context, userID uuid.UUID, profileID int64) (bool, time.Time, error) {
 	prioritised, dueAt, err := s.policySchedulesRepository.Prioritise(ctx, userID, profileID, time.Now().UTC())
 	if err != nil {
-		if errors.Is(err, repository.ErrPolicyScheduleNotFound) {
-			return true, time.Time{}, err
-		}
 		return false, time.Time{}, err
 	}
 

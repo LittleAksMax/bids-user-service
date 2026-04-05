@@ -2,7 +2,6 @@ package contracts
 
 // CreateBidRequest represents a request to create a bid
 type CreateBidRequest struct {
-	UserID     string  `json:"user_id" validate:"uuid"`
 	ProfileID  int64   `json:"profile_id" validate:"nonnegative"`
 	CampaignID string  `json:"campaign_id" validate:"required"`
 	AdGroupID  string  `json:"adgroup_id" validate:"required"`
@@ -12,7 +11,7 @@ type CreateBidRequest struct {
 	IsLive     bool    `json:"is_live"`
 }
 
-// AttachPolicyRequest represents a single policy attachment in a batch request.
+// AttachPolicyRequest represents a single policy attachment in a batch request
 type AttachPolicyRequest struct {
 	AdGroupID  string `json:"adgroup_id" validate:"required"`
 	CampaignID string `json:"campaign_id" validate:"required"`
@@ -21,7 +20,7 @@ type AttachPolicyRequest struct {
 	IsLive     bool   `json:"is_live"`
 }
 
-// DetachPolicyRequest represents a single policy detachment in a batch request.
+// DetachPolicyRequest represents a single policy detachment in a batch request
 type DetachPolicyRequest struct {
 	AdGroupID  string `json:"adgroup_id" validate:"required"`
 	CampaignID string `json:"campaign_id" validate:"required"`

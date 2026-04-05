@@ -16,6 +16,7 @@ import (
 )
 
 const profilesCacheTTL = 15 * time.Minute
+const campaignsCacheTTL = 15 * time.Minute
 
 type campaignsController struct {
 	campaignsService service.CampaignsService
@@ -26,8 +27,17 @@ func profilesCacheKey(userID uuid.UUID) string {
 	return fmt.Sprintf("profiles:%s", userID)
 }
 
+func campaignsCacheKey(profileID int64) string {
+	return fmt.Sprintf("campaigns:%d", profileID)
+}
+
 func (cc *campaignsController) GetProfiles(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(uuidSubjectKey).(uuid.UUID)
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
+
 	cacheKey := profilesCacheKey(userID)
 
 	// Try cache first
@@ -64,7 +74,11 @@ func (cc *campaignsController) GetProfiles(w http.ResponseWriter, r *http.Reques
 }
 
 func (cc *campaignsController) GetCampaigns(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(uuidSubjectKey).(uuid.UUID)
+	userID, err := subjectUUIDFromContext(r)
+	if err != nil {
+		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: err.Error()})
+		return
+	}
 
 	region := strings.ToUpper(r.PathValue(regionPath))
 	if region != "EU" && region != "US" && region != "FE" {
@@ -84,6 +98,18 @@ func (cc *campaignsController) GetCampaigns(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	cacheKey := campaignsCacheKey(profileID)
+	if cached, _, err := cc.cache.Get(r.Context(), cacheKey); err == nil {
+		var campaigns []contracts.Campaign
+		if err := json.Unmarshal([]byte(cached), &campaigns); err == nil {
+			requests.WriteJSON(w, http.StatusOK, requests.APIResponse{
+				Success: true,
+				Data:    campaigns,
+			})
+			return
+		}
+	}
+
 	campaigns, err := cc.campaignsService.GetCampaigns(r.Context(), userID, profileID, region)
 	if err != nil {
 		requests.WriteJSON(w, http.StatusInternalServerError, requests.APIResponse{
@@ -91,6 +117,10 @@ func (cc *campaignsController) GetCampaigns(w http.ResponseWriter, r *http.Reque
 			Error:   fmt.Sprintf("failed to get campaigns for profile ID %d", profileID),
 		})
 		return
+	}
+
+	if data, err := json.Marshal(campaigns); err == nil {
+		_ = cc.cache.Set(r.Context(), cacheKey, string(data), campaignsCacheTTL)
 	}
 
 	requests.WriteJSON(w, http.StatusOK, requests.APIResponse{

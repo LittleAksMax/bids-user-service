@@ -69,7 +69,7 @@ func ParsePolicyScheduleState(value string) (PolicyScheduleState, bool) {
 	}
 }
 
-// ProfilePolicySchedule represents a persisted schedule for an attached policy.
+// ProfilePolicySchedule represents a persisted schedule for an attached policy
 type ProfilePolicySchedule struct {
 	UserID          uuid.UUID           `json:"user_id"`
 	ProfileID       int64               `json:"profile_id"`

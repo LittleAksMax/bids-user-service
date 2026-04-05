@@ -96,16 +96,14 @@ func (c *policySchedulesController) PrioritiseSchedule(w http.ResponseWriter, r 
 	}
 	profileID, err := strconv.ParseInt(r.PathValue("profileID"), 10, 64)
 	if err != nil {
-		requests.WriteJSON(w, http.StatusUnauthorized, requests.APIResponse{Success: false, Error: "invalid profile ID"})
+		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{Success: false, Error: "invalid profile ID"})
 		return
 	}
 
 	prioritised, dueAt, err := c.policySchedulesService.PrioritiseSchedule(r.Context(), userID, profileID)
 	if err != nil {
 		status := http.StatusInternalServerError
-
-		// Different error if prioritised is set to true
-		if prioritised && errors.Is(err, service.ErrPolicyScheduleNotFound) {
+		if errors.Is(err, service.ErrPolicyScheduleNotFound) {
 			status = http.StatusNotFound
 		}
 
@@ -146,6 +144,7 @@ func (c *policySchedulesController) DriveSchedule(w http.ResponseWriter, r *http
 	// NOTE: should probably put a minimum timeout that is more reasonable
 	if req.TimeoutMinutes != nil && *req.TimeoutMinutes <= 0 {
 		requests.WriteJSON(w, http.StatusBadRequest, requests.APIResponse{Success: false, Error: "timeout must be greater than 0"})
+		return
 	}
 
 	userID, err := uuid.Parse(req.UserID)
@@ -177,8 +176,6 @@ func (c *policySchedulesController) DriveSchedule(w http.ResponseWriter, r *http
 	requests.WriteJSON(w, http.StatusOK, requests.APIResponse{Success: true, Data: schedule})
 }
 
-func (c *policySchedulesController) GetDueSchedule(w http.ResponseWriter, r *http.Request) {}
-
 func (c *policySchedulesController) ProcessSchedule(w http.ResponseWriter, r *http.Request) {
 	req := requests.GetRequestBody[contracts.ProcessProfilePolicyScheduleRequest](r)
 	if req == nil {
@@ -203,13 +200,4 @@ func (c *policySchedulesController) ProcessSchedule(w http.ResponseWriter, r *ht
 	}
 
 	requests.WriteJSON(w, http.StatusOK, requests.APIResponse{Success: true, Data: schedule})
-}
-
-func subjectUUIDFromContext(r *http.Request) (uuid.UUID, error) {
-	userID, ok := r.Context().Value(uuidSubjectKey).(uuid.UUID)
-	if !ok {
-		return uuid.Nil, errors.New("missing user subject")
-	}
-
-	return userID, nil
 }

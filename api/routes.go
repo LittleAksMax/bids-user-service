@@ -169,9 +169,8 @@ func RegisterRoutes(
 				r.Get("/attach/{profileID}", atc.GetAttachedPolicies)
 				r.Get("/profiles", cc.GetProfiles)
 				r.With(requests.ValidateRequest[contracts.CreateUserLogRequest](validationFuncs)).Post("/logs/{profileID}", lc.CreateUserLog)
-
+				r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
 			})
-			r.With(requests.ValidateRequest[contracts.CreateBidRequest](validationFuncs)).Post("/bids", bc.CreateBid)
 		})
 	})
 

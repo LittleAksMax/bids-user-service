@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -25,15 +24,6 @@ type Bid struct {
 
 // BidsRepository defines the interface for bid operations
 type BidsRepository interface {
-	// GetByUserID retrieves all bids for a user
-	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*Bid, error)
-
-	// GetByUserIDAndCampaignID retrieves the most recent bid for a user and campaign
-	GetByUserIDAndCampaignID(ctx context.Context, userID uuid.UUID, campaignID string) (*Bid, error)
-
-	// GetByCampaignID retrieves all bids for a campaign
-	GetByCampaignID(ctx context.Context, campaignID string) ([]*Bid, error)
-
 	// Create inserts a new bid (bids are immutable - cannot be updated or deleted)
 	Create(ctx context.Context, bid *Bid) error
 
@@ -60,76 +50,6 @@ type bidsRepository struct {
 // NewBidsRepository creates a new bids repository
 func NewBidsRepository(db *sql.DB) BidsRepository {
 	return &bidsRepository{db: db}
-}
-
-func (r *bidsRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*Bid, error) {
-	query := `
-		SELECT user_id, profile_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
-		FROM bids
-		WHERE user_id = $1
-		ORDER BY campaign_id
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("query bids: %w", err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	return r.scanBids(rows)
-}
-
-func (r *bidsRepository) GetByUserIDAndCampaignID(ctx context.Context, userID uuid.UUID, campaignID string) (*Bid, error) {
-	query := `
-		SELECT user_id, profile_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
-		FROM bids
-		WHERE user_id = $1 AND campaign_id = $2
-		ORDER BY change_date DESC
-		LIMIT 1
-	`
-
-	bid := &Bid{}
-	err := r.db.QueryRowContext(ctx, query, userID, campaignID).Scan(
-		&bid.UserID,
-		&bid.ProfileID,
-		&bid.CampaignID,
-		&bid.AdGroupID,
-		&bid.PolicyID,
-		&bid.FromBid,
-		&bid.ToBid,
-		&bid.ChangeDate,
-		&bid.IsLive,
-	)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("bid not found for user %s, campaign %s", userID, campaignID)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query bid: %w", err)
-	}
-
-	return bid, nil
-}
-
-func (r *bidsRepository) GetByCampaignID(ctx context.Context, campaignID string) ([]*Bid, error) {
-	query := `
-		SELECT user_id, profile_id, campaign_id, adgroup_id, policy_id, from_bid, to_bid, change_date, is_live
-		FROM bids
-		WHERE campaign_id = $1
-		ORDER BY user_id
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, campaignID)
-	if err != nil {
-		return nil, fmt.Errorf("query bids: %w", err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	return r.scanBids(rows)
 }
 
 func (r *bidsRepository) Create(ctx context.Context, bid *Bid) error {

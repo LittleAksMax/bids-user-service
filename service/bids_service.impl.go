@@ -24,6 +24,7 @@ func (s *bidsService) SearchBids(ctx context.Context, opts *BidsSearchOptions) (
 	startDate := time.Now().UTC().AddDate(0, 0, -opts.Days)
 
 	filters := &repository.BidFilters{
+		UserID:    &opts.UserID,
 		ProfileID: &opts.ProfileID,
 		StartDate: &startDate,
 	}
