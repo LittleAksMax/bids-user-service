@@ -15,6 +15,7 @@ COPY contracts/ contracts/
 COPY config/ config/
 COPY cache/ cache/
 COPY api/ api/
+COPY migrations/ migrations/
 COPY main.go main.go
 
 # Build the application
@@ -26,6 +27,7 @@ WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/user-service .
+COPY --from=builder /app/migrations ./migrations
 
 ENV MODE=production
 ENV PORT=8080

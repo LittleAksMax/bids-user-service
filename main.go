@@ -60,11 +60,9 @@ func main() {
 		}
 	}()
 
-	// Migrate automatically if in development mode
-	if mode == ModeDevelopment {
-		if err := db.Migrate(cfg.DB.DSN(), "migrations"); err != nil {
-			log.Fatalf("migration error: %v", err)
-		}
+	// Migrate automatically
+	if err := db.Migrate(cfg.DB.DSN(), "migrations"); err != nil {
+		log.Fatalf("migration error: %v", err)
 	}
 
 	r := api.NewRouter(pool, redisCache, cfg)
