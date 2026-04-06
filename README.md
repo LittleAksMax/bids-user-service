@@ -74,3 +74,27 @@ In this implementation, the semaphore is used around:
 - Each paginated `Next(ctx)` call while fetching ad-group pages.
 
 The goroutines send results into a buffered `results` channel along with the original campaign index, and the service rebuilds the final output slice in the original campaign order after the `WaitGroup` completes.
+
+## `LWA` OAuth Flow
+
+The `LWA` flow is intentionally coordinated by the backend rather than the frontend. The User Service creates the Amazon redirect URL itself so it can embed internal state into the OAuth `state` parameter before the browser leaves the application. That state contains the authenticated user ID, the selected Amazon Ads region, and the frontend return URL.
+
+The state is encrypted with a backend-held symmetric key and decrypted again when Amazon redirects back to the callback endpoint. This lets the service carry trusted internal context through the browser round-trip without exposing that state to the client as plain text and without trusting the client to send it back unchanged. The implementation uses AES-GCM. A limitation of this is that the key for the encryption is not rotated.
+
+1. Client starts the flow.
+   - An authenticated client calls `GET /lwa/{region}?redirect_uri=...`.
+   - The User Service validates the authenticated subject and requested region.
+2. Backend creates the Amazon redirect URL.
+   - The service packages `user_id`, `region`, and `redirect_url` into a small state payload.
+   - `LWAStateService` serialises that payload to JSON and encrypts it with AES-GCM.
+   - The User Service returns the Amazon `/ap/oa` URL containing the encrypted `state`.
+3. The user authenticates with Amazon.
+   - The client redirects the browser to the returned Amazon URL.
+   - Amazon authenticates the user and collects consent for Amazon Ads access.
+4. Amazon redirects back to the backend.
+   - Amazon calls `GET /lwa/process_token?code=...&state=...`.
+   - The User Service decrypts the returned `state` and recovers the original internal context.
+5. The backend completes the flow.
+   - `AuthService` exchanges the authorisation code for a refresh token.
+   - The refresh token is stored against the user and region.
+   - The User Service redirects the browser back to the original frontend `redirect_uri`.
