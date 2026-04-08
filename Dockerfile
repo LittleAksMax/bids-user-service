@@ -1,5 +1,7 @@
 # Build stage
-FROM golang:alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+
+ARG TARGETARCH
 
 RUN apk add --no-cache git ca-certificates
 
@@ -19,7 +21,7 @@ COPY migrations/ migrations/
 COPY main.go main.go
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o user-service ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -installsuffix cgo -o user-service ./
 
 FROM gcr.io/distroless/base-debian12
 

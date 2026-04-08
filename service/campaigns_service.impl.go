@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -90,8 +89,9 @@ func (s *campaignsService) GetProfiles(ctx context.Context, userID uuid.UUID) ([
 		rts = append(rts, regionToken{*tokens.RefreshTokenFE, amazonads.AmazonRegions.FarEast})
 	}
 
+	// If no tokens, no error, but no profiles to talk of. Return empty list.
 	if len(rts) == 0 {
-		return nil, errors.New("no registered refresh token found")
+		return []contracts.Seller{}, nil
 	}
 
 	// Accumulate all profiles across regions, keyed by seller ID

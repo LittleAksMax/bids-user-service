@@ -86,6 +86,7 @@ func NewRouter(pool *sql.DB, redisCache *cache.RedisRefreshStore, cfg *config.Co
 
 	ac := authController{
 		authService:     authService,
+		cache:           requestCache,
 		lwaStateService: lwaStateService,
 		clientId:        cfg.Ads.ClientID,
 		redirectUri:     redirectURL,

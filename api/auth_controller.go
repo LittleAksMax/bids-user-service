@@ -1,10 +1,12 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/LittleAksMax/bids-user-service/cache"
 	"github.com/LittleAksMax/bids-user-service/contracts"
 	"github.com/LittleAksMax/bids-user-service/service"
 	"github.com/LittleAksMax/bids-util/requests"
@@ -12,6 +14,7 @@ import (
 
 type authController struct {
 	authService     service.AuthService
+	cache           cache.RequestCache
 	lwaStateService service.LWAStateService
 	clientId        string
 	redirectUri     *url.URL
@@ -118,6 +121,11 @@ func (ac *authController) ProcessToken(w http.ResponseWriter, r *http.Request) {
 			Error:   "failed to process token",
 		})
 		return
+	}
+
+	// Invalidate cache to make the new profiles actually fetch in the campaignsController GetProfiles endpoint
+	if err := ac.cache.Delete(r.Context(), profilesCacheKey(state.UserID)); err != nil {
+		log.Printf("[UserID: %s; Region: %s] Failed to invalidate cache, but token processed correctly\n", state.UserID.String(), state.Region)
 	}
 
 	// Redirect back to the frontend page that initiated the OAuth flow
